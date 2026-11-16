@@ -32,18 +32,19 @@ flowchart LR
 
 ## 3. Estágios do Pipeline
 
-### 3.1. Stage 1: Quality & Test (CI)
+### 3.1. Stage 1: Quality & Test (CI — *Quality Gate*)
 - **Linter & Formatação:** Validação de sintaxe e padrões de código (backend e frontend).
 - **Testes Unitários:** Execução de testes de unidade com relatório de cobertura.
-- **Testes de Integração:** Execução de testes de comunicação com banco de dados ou mocks de serviço.
+- **Testes de Integração / API:** Execução de testes de comunicação com banco de dados e endpoints.
+- **Influência dos Testes na Implantação (Bloqueio Automático):** Os estágios seguintes (`Build` e `Deploy`) dependem estritamente do sucesso desta etapa (`needs: test`). Caso o linter ou qualquer teste automatizado falhe, **o pipeline é interrompido imediatamente**, impedindo a geração de artefatos e bloqueando a implantação na AWS.
 
 ### 3.2. Stage 2: Build & Package
-- **Criação de Artefatos:** Construção de imagens de contêiner otimizadas (multi-stage build).
+- **Criação de Artefatos:** Construção de imagens de contêiner otimizadas (multi-stage build com Docker).
 - **Tagging:** Versionamento baseado em SHA do commit ou tag semântica de release.
-- **Registry:** Envio seguro para o container registry configurado.
+- **Registry:** Envio seguro para o **Amazon ECR** (ou registry equivalente configurado).
 
-### 3.3. Stage 3: Deploy (CD)
-- Disparo automatizado para o ambiente de execução em nuvem.
+### 3.3. Stage 3: Deploy (CD — AWS)
+- Disparo automatizado via **GitHub Actions** para o ambiente **AWS** (ex: atualização de contêineres na EC2/ECS ou execução via Ansible).
 - Aplicação das atualizações de infraestrutura/serviço com zero ou mínimo *downtime*.
 
 ### 3.4. Stage 4: Verificação Pós-Deploy (Smoke Testing)

@@ -9,6 +9,8 @@ Repositório do projeto **CloudOps Lab**, contemplando o desenvolvimento de apli
 Toda a documentação técnica, diretrizes de governança e guias operacionais estão organizados no diretório [`docs/`](file:///home/matias/Documentos/cloudops-lab/docs/README.md).
 
 - 📋 [**Regras e Diretrizes de Documentação**](file:///home/matias/Documentos/cloudops-lab/docs/REGRAS_DOCUMENTACAO.md)
+- 📝 [**Proposta Inicial do Projeto**](file:///home/matias/Documentos/cloudops-lab/docs/proposta-inicial.md)
+- 👥 [**Organização da Equipe e Divisão de Tarefas**](file:///home/matias/Documentos/cloudops-lab/docs/equipe.md)
 - 📐 [**Padrões de Código e Git (pt-BR, GitFlow & Conventional Commits)**](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/padroes-codigo-git.md)
 - 🏛️ [**Arquitetura e Decisões Técnicas (ADRs)**](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/README.md)
 - 💻 [**Desenvolvimento Local**](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/README.md)

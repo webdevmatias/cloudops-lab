@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { SEGREDO_ACCESS } from '../../src/configuracao/segredos';
 
 vi.mock('../../src/configuracao/bancoDados', () => ({
   verificarConexaoBanco: vi.fn().mockResolvedValue(true),
@@ -24,8 +26,16 @@ describe('Rotas da API (Integração)', () => {
     expect(resposta.text).toContain('process_cpu');
   });
 
-  it('GET /clientes deve retornar lista de clientes', async () => {
+  it('GET /clientes deve retornar 401 sem token de acesso', async () => {
     const resposta = await request(app).get('/clientes');
+    expect(resposta.status).toBe(401);
+  });
+
+  it('GET /clientes deve retornar lista de clientes quando autenticado', async () => {
+    const token = jwt.sign({ sub: 'admin@loja.com', uid: 1, papel: 'admin' }, SEGREDO_ACCESS);
+    const resposta = await request(app)
+      .get('/clientes')
+      .set('Authorization', `Bearer ${token}`);
     expect(resposta.status).toBe(200);
     expect(Array.isArray(resposta.body)).toBe(true);
   });

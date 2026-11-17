@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudops-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cloudops_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudops_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-loja_roupas}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dados:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cloudops_user} -d ${POSTGRES_DB:-loja_roupas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloudops-rede
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudops-backend
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cloudops_user}:${POSTGRES_PASSWORD:-cloudops_pass}@postgres:5432/${POSTGRES_DB:-loja_roupas}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudops-rede
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    container_name: cloudops-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - cloudops-rede
+
+volumes:
+  postgres_dados:
+
+networks:
+  cloudops-rede:
+    driver: bridge

@@ -96,6 +96,18 @@ cloudops-lab/
 
 ---
 
+## Equipe e Divisão de Responsabilidades
+
+| Integrante | Papel Principal | Co-responsabilidades |
+| :--- | :--- | :--- |
+| **Lucas Matias** | Aplicação (Frontend, Backend & PostgreSQL) e Testes | Dockerfiles, `docker-compose.yml` e pipeline de CI |
+| **Jeane Vitoria** | Terraform (IaC), Automação e Deploy (CD) | Pipeline de CD, smoke test pós-deploy e guia de *teardown* |
+| **Brenno Araujo** | Serviços AWS (3 EC2, VPC, ECR, EBS), Segurança (Infisical) e Observabilidade | Arquitetura em nuvem, ADRs e governança da documentação |
+
+Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](file:///home/lucasmatias/Documentos/cloudops-lab/docs/equipe.md).
+
+---
+
 ## Documentação
 
 - [Índice da Documentação](file:///home/lucasmatias/Documentos/cloudops-lab/docs/README.md)

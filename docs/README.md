@@ -21,6 +21,8 @@ A documentação está dividida de forma modular nas seguintes áreas:
 docs/
 ├── README.md                     # Índice principal da documentação (este arquivo)
 ├── REGRAS_DOCUMENTACAO.md        # Diretrizes, padrões e regras mandatórias
+├── proposta-inicial.md           # Proposta do projeto, problema real e tecnologias
+├── equipe.md                     # Organização do grupo e divisão de tarefas
 │
 ├── arquitetura/                  # Visão geral, diagramas de componentes e fluxos
 │   ├── README.md                 # Arquitetura da solução e diagrama sistêmico
@@ -56,6 +58,8 @@ docs/
 
 ## 🚀 Navegação Rápida
 
+- [Proposta Inicial do Projeto](file:///home/matias/Documentos/cloudops-lab/docs/proposta-inicial.md)
+- [Organização da Equipe e Divisão de Tarefas](file:///home/matias/Documentos/cloudops-lab/docs/equipe.md)
 - [Arquitetura do Sistema](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/README.md)
 - [Decisões Técnicas Justificadas (ADRs)](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/)
 - [Execução em Ambiente Local](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/README.md)

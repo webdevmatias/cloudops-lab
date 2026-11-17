@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const fontePrincipal = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
-  title: 'CloudOps Lab — Cadastro de Clientes',
-  description: 'Plataforma de cadastro de clientes da loja de roupas',
+  title: 'Atelier CloudOps — Cadastro de Clientes',
+  description: 'Plataforma de cadastro e gestão de clientes da loja de roupas',
 };
 
 export default function RootLayout({
@@ -12,7 +18,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <body
+        className={fontePrincipal.className}
+        style={{
+          margin: 0,
+          backgroundColor: '#fafaf9',
+          color: '#1c1917',
+          WebkitFontSmoothing: 'antialiased',
+        }}
+      >
         {children}
       </body>
     </html>

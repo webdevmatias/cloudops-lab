@@ -6,11 +6,11 @@ Este documento descreve a visão geral da arquitetura de software e infraestrutu
 
 ## 1. Visão Geral do Sistema
 
-A aplicação é composta pelos seguintes componentes centrais:
-- **Frontend (UI):** Interface de usuário para interação com os clientes.
-- **Backend (API / Serviços):** Regras de negócio, processamento de requisições e integração.
-- **Persistência de Dados:** Banco de dados relacional ou não-relacional para armazenamento durável de informações.
-- **Serviços de Nuvem & Infraestrutura:** Recursos de computação, rede e gerenciamento provisionados via Terraform.
+A aplicação é uma plataforma de **cadastro de clientes para uma loja de roupas**, composta pelos seguintes componentes centrais executados em contêineres **Docker** em instâncias **Amazon EC2** separadas:
+- **Frontend (UI):** Aplicação **Next.js** em uma EC2 dedicada, oferecendo a interface web para cadastro, busca e gerenciamento de clientes.
+- **Backend (API / Serviços):** API REST em **Express + TypeScript** em uma EC2 dedicada, responsável pelas regras de negócio, validações e exposição de métricas.
+- **Persistência de Dados:** Banco de dados **PostgreSQL** em uma EC2 dedicada, com volume persistente para armazenamento durável dos dados dos clientes.
+- **Serviços de Nuvem & Infraestrutura:** Recursos de computação (3 EC2), rede (VPC, Subnets e Security Groups) e registro de imagens (ECR) provisionados via Terraform.
 
 ---
 
@@ -21,15 +21,20 @@ O fluxo fundamental de comunicação entre os componentes:
 ```mermaid
 flowchart TD
     subgraph Usuários
-        User[Navegador / Cliente]
+        User[Navegador / Loja]
     end
 
-    subgraph Nuvem [Ambiente de Nuvem]
-        subgraph Rede [Rede Pública / Privada]
-            LB[Load Balancer / Ingress / Gateway]
-            Frontend[Frontend Application]
-            Backend[Backend API]
-            Database[(Mecanismo de Persistência)]
+    subgraph AWS [Nuvem AWS - VPC]
+        subgraph EC2_Front [EC2 Frontend]
+            Frontend[Docker: Next.js]
+        end
+
+        subgraph EC2_Back [EC2 Backend]
+            Backend[Docker: Express + TypeScript]
+        end
+
+        subgraph EC2_DB [EC2 Banco de Dados]
+            Database[(Docker: PostgreSQL)]
         end
 
         subgraph Telemetria [Observabilidade & Monitoramento]
@@ -38,10 +43,9 @@ flowchart TD
         end
     end
 
-    User --> LB
-    LB --> Frontend
-    Frontend --> Backend
-    Backend --> Database
+    User -->|HTTP/HTTPS| Frontend
+    Frontend -->|REST API| Backend
+    Backend -->|TCP 5432| Database
     Backend -.->|Métricas & Logs| Prometheus
     Prometheus --> Grafana
 ```
@@ -50,12 +54,12 @@ flowchart TD
 
 ## 3. Componentes e Responsabilidades
 
-| Componente | Tecnologia Prevista | Responsabilidade |
-| :--- | :--- | :--- |
-| **Frontend** | *A definir* | Interface visual, renderização de páginas e interação do usuário. |
-| **Backend** | *A definir* | Endpoints REST/API, lógica de negócio, autenticação e validações. |
-| **Persistência** | *A definir (ex: PostgreSQL/MongoDB)* | Armazenamento persistente e transacional dos dados. |
-| **Infraestrutura** | Terraform + Cloud Provider | Provisionamento automatizado e gerenciamento de estado. |
+| Componente | Tecnologia | Hospedagem | Responsabilidade |
+| :--- | :--- | :--- | :--- |
+| **Frontend** | Next.js + Docker | EC2 dedicada (Frontend) | Interface visual de cadastro, listagem e edição de clientes da loja. |
+| **Backend** | Express + TypeScript + Docker | EC2 dedicada (Backend) | Endpoints REST/API, regras de negócio, validações e métricas. |
+| **Persistência** | PostgreSQL + Docker | EC2 dedicada (Banco de Dados) | Armazenamento relacional e transacional dos cadastros de clientes. |
+| **Infraestrutura** | Terraform + AWS (EC2, VPC, ECR) | AWS | Provisionamento automatizado das 3 instâncias EC2, rede e segurança. |
 
 ---
 

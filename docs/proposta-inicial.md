@@ -6,28 +6,26 @@ Este documento formaliza a proposta inicial do projeto para apresentação e val
 
 ## 1. Identificação do Problema Real / Cenário de Uso
 
-> *A preencher pelo grupo:* Descrever qual problema real ou cenário prático a aplicação resolve e por que a solução proposta se justifica.
-
-- **Problema identificado:** *A definir*
-- **Público-alvo / Usuários:** *A definir*
-- **Justificativa da solução em nuvem:** *A definir*
+- **Problema identificado:** Lojas de roupas de pequeno e médio porte frequentemente gerenciam o cadastro de seus clientes em planilhas dispersas ou anotações manuais, dificultando a consulta rápida, a atualização de dados de contato e o histórico básico de preferências, além de gerar risco de perda de informações.
+- **Público-alvo / Usuários:** Equipe de atendimento, vendedores e gerência de uma loja de roupas.
+- **Justificativa da solução em nuvem:** Disponibilizar uma plataforma web centralizada, acessível de qualquer ponto da loja com segurança, com persistência confiável em banco de dados isolado, automação de deploy via contêineres Docker e monitoramento contínuo de disponibilidade na AWS.
 
 ---
 
 ## 2. Funcionalidades Previstas
 
-- [ ] **Funcionalidade 1:** *A definir (ex: cadastro/autenticação de usuários)*
-- [ ] **Funcionalidade 2:** *A definir (ex: operação principal com persistência e consulta)*
-- [ ] **Funcionalidade 3:** *A definir (ex: painel/listagem interativa no frontend)*
+- [ ] **Funcionalidade 1:** Cadastro completo de clientes da loja de roupas (nome, e-mail, telefone, CPF/identificador, endereço e preferências de tamanho/estilo).
+- [ ] **Funcionalidade 2:** Consulta, busca e listagem paginada de clientes com filtros no painel web.
+- [ ] **Funcionalidade 3:** Atualização e remoção de registros de clientes com validação de dados e persistência transacional no PostgreSQL.
 
 ---
 
 ## 3. Arquitetura Preliminar
 
-- **Frontend:** *A definir* (interface web para interação com o usuário)
-- **Backend:** *A definir* (API responsável pelas regras de negócio e exposição de métricas)
-- **Persistência:** *A definir* (banco de dados relacional ou não relacional)
-- **Nuvem (AWS):** Serviços selecionados para computação, rede, armazenamento e registro de imagens (ex: Amazon EC2, ALB, ECR, EBS/S3).
+- **Frontend:** Aplicação web em **Next.js** empacotada em contêiner **Docker**, executando em uma instância **Amazon EC2** dedicada.
+- **Backend:** API REST em **Express com TypeScript** empacotada em contêiner **Docker**, executando em uma instância **Amazon EC2** dedicada, responsável pelas regras de negócio, validações e exposição de métricas.
+- **Persistência:** Banco de dados relacional **PostgreSQL** empacotado em contêiner **Docker** (com volume persistente EBS), executando em uma instância **Amazon EC2** dedicada em rede privada/restrita.
+- **Nuvem (AWS):** Três instâncias **Amazon EC2** isoladas (uma para cada camada: Frontend, Backend e Banco de Dados), comunicando-se via VPC e Security Groups, com registro de imagens no **Amazon ECR**.
 
 ---
 

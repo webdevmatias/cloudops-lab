@@ -9,7 +9,7 @@ Este documento orienta os desenvolvedores sobre a configuração do ambiente, ex
 Antes de iniciar, certifique-se de possuir instalado em sua máquina:
 - **Git**
 - **Docker** e **Docker Compose**
-- **Linguagem / Runtime da stack** (ex: Node.js, Python, Go - conforme definido na stack da aplicação)
+- **Node.js** (versão LTS recomendada, para desenvolvimento local do Frontend em Next.js e Backend em Express + TypeScript)
 - **Infisical CLI** (para injeção local de segredos, se aplicável)
 
 ---
@@ -46,21 +46,21 @@ docker compose down
 
 ## 4. Executando os Serviços Manualmente (Modo Desenvolvimento)
 
-### 4.1. Banco de Dados
+### 4.1. Banco de Dados (PostgreSQL)
 ```bash
-docker compose up -d postgres # ou banco correspondente
+docker compose up -d postgres
 ```
 
-### 4.2. Backend
+### 4.2. Backend (Express + TypeScript)
 ```bash
 cd backend/
 # Instalar dependências
-npm install # ou pip install -r requirements.txt
+npm install
 # Executar em modo dev
 npm run dev
 ```
 
-### 4.3. Frontend
+### 4.3. Frontend (Next.js)
 ```bash
 cd frontend/
 # Instalar dependências

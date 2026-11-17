@@ -7,9 +7,9 @@ Este documento descreve a estrutura de infraestrutura em nuvem do projeto **Clou
 ## 1. Visão Geral da Infraestrutura
 
 A infraestrutura é declarada em código (IaC) e mantida sob controle de versão. Ela engloba:
-- **Rede:** Subnets, tabelas de roteamento, regras de firewall / Security Groups e gateways.
-- **Computação:** Máquinas virtuais, contêineres ou serviços gerenciados onde a aplicação (frontend/backend) executa.
-- **Persistência:** Instância ou serviço de banco de dados e volumes de armazenamento persistente.
+- **Rede:** VPC, subnets, tabelas de roteamento, gateways e Security Groups restringindo o acesso entre camadas (ex.: PostgreSQL acessível apenas pela EC2 do Backend).
+- **Computação:** Três instâncias **Amazon EC2** dedicadas executando **Docker** — uma para o **Frontend (Next.js)**, uma para o **Backend (Express + TypeScript)** e uma para o **Banco de Dados (PostgreSQL)**.
+- **Persistência:** Volumes EBS anexados à EC2 de banco de dados para persistência durável dos dados do PostgreSQL.
 - **Observabilidade:** Componentes para coleta e visualização de métricas/logs (Prometheus, Grafana, Telegraf).
 
 ---

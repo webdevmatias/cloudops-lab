@@ -31,10 +31,10 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 ## 3. Matriz Detalhada de Responsabilidades
 
 ### 3.1. Lucas Matias — Desenvolvimento da Aplicação, Persistência e Testes
-- Implementação da aplicação (**Frontend**, **Backend** e integração com **Banco de Dados**).
-- Criação dos arquivos de conteinerização (`Dockerfile` e `docker-compose.yml` para ambiente local).
+- Implementação da aplicação (**Frontend em Next.js**, **Backend em Express + TypeScript** e modelagem/integração com **PostgreSQL**).
+- Criação e validação local dos arquivos de conteinerização (`Dockerfile` de cada serviço e `docker-compose.yml` para desenvolvimento local).
 - Implementação dos **testes automatizados** (unitários, de integração e de API).
-- Configuração dos estágios de **CI** no GitHub Actions (verificação de código, execução de testes como *quality gate* e build/publicação de imagens).
+- Configuração dos estágios de **CI** no GitHub Actions (verificação de código, execução de testes como *quality gate* e build/publicação de imagens Docker).
 
 ### 3.2. Jeane Vitoria — Terraform (IaC), Automação e Deploy (CD)
 - Escrita e modularização dos arquivos **Terraform** para provisionamento automatizado e versionamento no Git.
@@ -43,7 +43,7 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 - Manutenção e validação do procedimento de destruição de recursos ([`teardown.md`](file:///home/matias/Documentos/cloudops-lab/docs/infraestrutura/teardown.md)).
 
 ### 3.3. Brenno Araujo — Serviços AWS, Segurança e Observabilidade
-- Definição e gestão dos serviços na **AWS** (EC2, Application Load Balancer, VPC/Subnets/Security Groups, IAM, ECR, EBS/S3 conforme arquitetura definida).
+- Subida, configuração e gestão dos serviços na **AWS** (3 instâncias **EC2** dedicadas para Frontend, Backend e PostgreSQL, VPC/Subnets/Security Groups, IAM, ECR e EBS).
 - Configuração do gerenciamento de segredos com **Infisical** (aplicação e pipeline CI/CD), garantindo ausência de credenciais no código e nos logs.
 - Implementação da stack de **Observabilidade** (exposição de `/metrics`, logs estruturados, Prometheus, Grafana, Telegraf/Loki e dashboards).
 - Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/README.md)) e revisão de conformidade da documentação.

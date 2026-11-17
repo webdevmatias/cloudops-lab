@@ -1,6 +1,6 @@
 'use client';
 
-import { CSSProperties, FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 interface Cliente {
   id: number;
@@ -14,123 +14,6 @@ interface Cliente {
 
 const URL_API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-const estilos: Record<string, CSSProperties> = {
-  pagina: {
-    minHeight: '100vh',
-    padding: '2rem 1.25rem 4rem',
-    maxWidth: 1120,
-    margin: '0 auto',
-  },
-  cabecalho: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
-    gap: '1rem',
-    marginBottom: '1.75rem',
-    paddingBottom: '1.25rem',
-    borderBottom: '1px solid #e7e5e4',
-  },
-  subtitulo: {
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: '#b45309',
-    margin: '0 0 0.25rem',
-  },
-  titulo: {
-    fontSize: '1.75rem',
-    fontWeight: 700,
-    margin: 0,
-    letterSpacing: '-0.02em',
-  },
-  kpis: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginBottom: '1.75rem',
-  },
-  kpiCard: {
-    backgroundColor: '#ffffff',
-    border: '1px solid #e7e5e4',
-    borderRadius: 12,
-    padding: '1rem 1.25rem',
-  },
-  kpiLabel: {
-    fontSize: '0.8rem',
-    color: '#78716c',
-    margin: '0 0 0.35rem',
-  },
-  kpiValor: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    margin: 0,
-    color: '#1c1917',
-  },
-  gradePrincipal: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(300px, 360px) 1fr',
-    gap: '1.5rem',
-    alignItems: 'start',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    border: '1px solid #e7e5e4',
-    borderRadius: 12,
-    padding: '1.5rem',
-    boxShadow: '0 1px 2px rgba(28, 25, 23, 0.04)',
-  },
-  campoGrupo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.35rem',
-  },
-  label: {
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    color: '#44403c',
-  },
-  input: {
-    padding: '0.6rem 0.75rem',
-    borderRadius: 8,
-    border: '1px solid #d6d3d1',
-    fontSize: '0.9rem',
-    outline: 'none',
-    backgroundColor: '#fafaf9',
-    color: '#1c1917',
-  },
-  botaoPrimario: {
-    padding: '0.65rem 1.15rem',
-    backgroundColor: '#1c1917',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: 8,
-    fontSize: '0.9rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  botaoSecundario: {
-    padding: '0.65rem 1rem',
-    backgroundColor: '#f5f5f4',
-    color: '#44403c',
-    border: '1px solid #d6d3d1',
-    borderRadius: 8,
-    fontSize: '0.9rem',
-    fontWeight: 500,
-    cursor: 'pointer',
-  },
-  badgeTamanho: {
-    display: 'inline-block',
-    padding: '0.2rem 0.55rem',
-    borderRadius: 999,
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
-  },
-};
-
 function obterIniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/);
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
@@ -138,6 +21,11 @@ function obterIniciais(nome: string): string {
 }
 
 export default function PaginaInicial() {
+  const [autenticado, setAutenticado] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('admin@loja.com');
+  const [loginSenha, setLoginSenha] = useState('');
+  const [entrando, setEntrando] = useState(false);
+
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -154,12 +42,82 @@ export default function PaginaInicial() {
   const [endereco, setEndereco] = useState('');
   const [tamanhoPreferido, setTamanhoPreferido] = useState('M');
 
+  async function renovarToken(): Promise<string | null> {
+    try {
+      const resposta = await fetch(`${URL_API}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!resposta.ok) return null;
+
+      const dados = (await resposta.json()) as { accessToken: string };
+      localStorage.setItem('accessToken', dados.accessToken);
+      return dados.accessToken;
+    } catch {
+      return null;
+    }
+  }
+
+  async function requisicaoAutenticada(url: string, opcoes: RequestInit = {}): Promise<Response> {
+    let token = localStorage.getItem('accessToken');
+    const cabecalhos = new Headers(opcoes.headers);
+    if (token) cabecalhos.set('Authorization', `Bearer ${token}`);
+
+    let resposta = await fetch(url, { ...opcoes, headers: cabecalhos });
+
+    if (resposta.status === 401) {
+      token = await renovarToken();
+      if (!token) {
+        sair();
+        return resposta;
+      }
+      cabecalhos.set('Authorization', `Bearer ${token}`);
+      resposta = await fetch(url, { ...opcoes, headers: cabecalhos });
+    }
+
+    return resposta;
+  }
+
+  async function aoEntrar(evento: FormEvent) {
+    evento.preventDefault();
+    setEntrando(true);
+    setErro(null);
+    try {
+      const resposta = await fetch(`${URL_API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: loginEmail, senha: loginSenha }),
+      });
+      if (!resposta.ok) {
+        const corpo = await resposta.json().catch(() => ({}));
+        throw new Error(corpo.erro ?? 'Credenciais inválidas');
+      }
+      const dados = (await resposta.json()) as { accessToken: string };
+      localStorage.setItem('accessToken', dados.accessToken);
+      setAutenticado(true);
+      setLoginSenha('');
+      await carregarClientes();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao autenticar');
+    } finally {
+      setEntrando(false);
+    }
+  }
+
+  async function sair() {
+    await fetch(`${URL_API}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    localStorage.removeItem('accessToken');
+    setAutenticado(false);
+    setClientes([]);
+  }
+
   async function carregarClientes(termoBusca = '') {
     setCarregando(true);
     setErro(null);
     try {
       const query = termoBusca ? `?busca=${encodeURIComponent(termoBusca)}` : '';
-      const resposta = await fetch(`${URL_API}/clientes${query}`);
+      const resposta = await requisicaoAutenticada(`${URL_API}/clientes${query}`);
       if (!resposta.ok) throw new Error('Falha ao carregar clientes');
       const dados: Cliente[] = await resposta.json();
       setClientes(dados);
@@ -171,7 +129,11 @@ export default function PaginaInicial() {
   }
 
   useEffect(() => {
-    carregarClientes();
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      setAutenticado(true);
+      carregarClientes();
+    }
   }, []);
 
   const tamanhoMaisFrequente = useMemo(() => {
@@ -213,7 +175,7 @@ export default function PaginaInicial() {
       const url = idEdicao ? `${URL_API}/clientes/${idEdicao}` : `${URL_API}/clientes`;
       const metodo = idEdicao ? 'PUT' : 'POST';
 
-      const resposta = await fetch(url, {
+      const resposta = await requisicaoAutenticada(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -249,7 +211,7 @@ export default function PaginaInicial() {
     setMensagem(null);
     setErro(null);
     try {
-      const resposta = await fetch(`${URL_API}/clientes/${id}`, { method: 'DELETE' });
+      const resposta = await requisicaoAutenticada(`${URL_API}/clientes/${id}`, { method: 'DELETE' });
       if (!resposta.ok) throw new Error('Erro ao remover cliente');
       setConfirmarExclusaoId(null);
       setMensagem('Cliente removido com sucesso.');
@@ -259,103 +221,125 @@ export default function PaginaInicial() {
     }
   }
 
+  const classeInput =
+    'w-full rounded-lg border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 outline-none focus:border-violet-600 focus:ring-2 focus:ring-violet-200';
+
+  if (!autenticado) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-5 py-8">
+        <section className="w-full max-w-md rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 rounded-xl bg-gradient-to-br from-violet-800 to-purple-600 px-5 py-4 text-white shadow-md">
+            <h1 className="text-xl font-bold tracking-tight">Painel Admin</h1>
+          </div>
+
+          {erro && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+              {erro}
+            </div>
+          )}
+
+          <form onSubmit={aoEntrar} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">E-mail do Administrador</label>
+              <input
+                className={classeInput}
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">Senha</label>
+              <input
+                className={classeInput}
+                type="password"
+                placeholder="••••••••"
+                value={loginSenha}
+                onChange={(e) => setLoginSenha(e.target.value)}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={entrando}
+              className="mt-1 cursor-pointer rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
+            >
+              {entrando ? 'Entrando...' : 'Entrar no Painel'}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main style={estilos.pagina}>
-      <header style={estilos.cabecalho}>
-        <div>
-          <p style={estilos.subtitulo}>Atelier CloudOps • Loja de Roupas</p>
-          <h1 style={estilos.titulo}>Gestão de Clientes</h1>
+    <main className="mx-auto min-h-screen max-w-6xl px-5 py-8 pb-16">
+      <header className="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-gradient-to-br from-violet-800 to-purple-600 px-6 py-5 text-white shadow-md">
+        <h1 className="text-2xl font-bold tracking-tight">Gestão de Clientes</h1>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">Admin</span>
+          <button
+            type="button"
+            onClick={sair}
+            className="cursor-pointer rounded-lg border border-white/35 bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-white/25"
+          >
+            Sair
+          </button>
         </div>
-        <span style={{ fontSize: '0.85rem', color: '#78716c' }}>
-          Cadastro, preferências de tamanho e contato
-        </span>
       </header>
 
-      <section style={estilos.kpis}>
-        <div style={estilos.kpiCard}>
-          <p style={estilos.kpiLabel}>Total de Clientes</p>
-          <p style={estilos.kpiValor}>{clientes.length}</p>
+      <section className="mb-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-stone-200 bg-white px-5 py-4">
+          <p className="mb-1 text-xs text-stone-500">Total de Clientes</p>
+          <p className="text-2xl font-bold text-stone-900">{clientes.length}</p>
         </div>
-        <div style={estilos.kpiCard}>
-          <p style={estilos.kpiLabel}>Tamanho Mais Procurado</p>
-          <p style={estilos.kpiValor}>{tamanhoMaisFrequente}</p>
+        <div className="rounded-xl border border-stone-200 bg-white px-5 py-4">
+          <p className="mb-1 text-xs text-stone-500">Tamanho Mais Procurado</p>
+          <p className="text-2xl font-bold text-stone-900">{tamanhoMaisFrequente}</p>
         </div>
-        <div style={estilos.kpiCard}>
-          <p style={estilos.kpiLabel}>Último Cadastro</p>
-          <p style={{ ...estilos.kpiValor, fontSize: '1.1rem', paddingTop: '0.25rem' }}>
+        <div className="rounded-xl border border-stone-200 bg-white px-5 py-4">
+          <p className="mb-1 text-xs text-stone-500">Último Cadastro</p>
+          <p className="truncate pt-1 text-lg font-bold text-stone-900">
             {clientes[0]?.nome ?? 'Nenhum ainda'}
           </p>
         </div>
       </section>
 
       {mensagem && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '0.85rem 1rem',
-            backgroundColor: '#ecfdf5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            borderRadius: 10,
-            marginBottom: '1.25rem',
-            fontSize: '0.9rem',
-          }}
-        >
+        <div className="mb-5 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <span>{mensagem}</span>
-          <button
-            type="button"
-            onClick={() => setMensagem(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 700 }}
-          >
+          <button type="button" onClick={() => setMensagem(null)} className="cursor-pointer font-bold">
             ✕
           </button>
         </div>
       )}
 
       {erro && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '0.85rem 1rem',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
-            borderRadius: 10,
-            marginBottom: '1.25rem',
-            fontSize: '0.9rem',
-          }}
-        >
+        <div className="mb-5 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <span>{erro}</span>
-          <button
-            type="button"
-            onClick={() => setErro(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 700 }}
-          >
+          <button type="button" onClick={() => setErro(null)} className="cursor-pointer font-bold">
             ✕
           </button>
         </div>
       )}
 
-      <div style={estilos.gradePrincipal}>
-        <section style={estilos.card}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.25rem' }}>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[360px_1fr]">
+        <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-lg font-bold text-stone-900">
             {idEdicao ? 'Editar Cliente' : 'Novo Cliente'}
           </h2>
-          <p style={{ fontSize: '0.82rem', color: '#78716c', margin: '0 0 1.25rem' }}>
-            {idEdicao
-              ? 'Atualize os dados e clique em salvar.'
-              : 'Preencha os dados para registrar na loja.'}
+          <p className="mb-5 text-xs text-stone-500">
+            {idEdicao ? 'Atualize os dados e clique em salvar.' : 'Preencha os dados para registrar na loja.'}
           </p>
 
-          <form onSubmit={aoSalvar} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            <div style={estilos.campoGrupo}>
-              <label style={estilos.label}>Nome completo</label>
+          <form onSubmit={aoSalvar} className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">Nome completo</label>
               <input
-                style={estilos.input}
+                className={classeInput}
                 placeholder="Ex.: Maria Silva"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
@@ -363,10 +347,10 @@ export default function PaginaInicial() {
               />
             </div>
 
-            <div style={estilos.campoGrupo}>
-              <label style={estilos.label}>E-mail</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">E-mail</label>
               <input
-                style={estilos.input}
+                className={classeInput}
                 type="email"
                 placeholder="maria@exemplo.com"
                 value={email}
@@ -375,21 +359,21 @@ export default function PaginaInicial() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div style={estilos.campoGrupo}>
-                <label style={estilos.label}>Telefone</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label className="text-xs font-semibold text-stone-700">Telefone</label>
                 <input
-                  style={estilos.input}
+                  className={classeInput}
                   placeholder="(81) 99999-9999"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
                   required
                 />
               </div>
-              <div style={estilos.campoGrupo}>
-                <label style={estilos.label}>CPF</label>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label className="text-xs font-semibold text-stone-700">CPF</label>
                 <input
-                  style={estilos.input}
+                  className={classeInput}
                   placeholder="000.000.000-00"
                   value={cpf}
                   onChange={(e) => setCpf(e.target.value)}
@@ -398,20 +382,20 @@ export default function PaginaInicial() {
               </div>
             </div>
 
-            <div style={estilos.campoGrupo}>
-              <label style={estilos.label}>Endereço</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">Endereço</label>
               <input
-                style={estilos.input}
+                className={classeInput}
                 placeholder="Rua, número, bairro"
                 value={endereco}
                 onChange={(e) => setEndereco(e.target.value)}
               />
             </div>
 
-            <div style={estilos.campoGrupo}>
-              <label style={estilos.label}>Tamanho preferido</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-stone-700">Tamanho preferido</label>
               <select
-                style={estilos.input}
+                className={classeInput}
                 value={tamanhoPreferido}
                 onChange={(e) => setTamanhoPreferido(e.target.value)}
               >
@@ -423,16 +407,20 @@ export default function PaginaInicial() {
               </select>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem' }}>
+            <div className="mt-2 flex gap-2.5">
               <button
                 type="submit"
                 disabled={salvando}
-                style={{ ...estilos.botaoPrimario, flex: 1, opacity: salvando ? 0.7 : 1 }}
+                className="flex-1 cursor-pointer rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-60"
               >
                 {salvando ? 'Salvando...' : idEdicao ? 'Salvar Alterações' : 'Cadastrar Cliente'}
               </button>
               {idEdicao && (
-                <button type="button" onClick={limparFormulario} style={estilos.botaoSecundario}>
+                <button
+                  type="button"
+                  onClick={limparFormulario}
+                  className="cursor-pointer rounded-lg border border-stone-300 bg-stone-100 px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-200"
+                >
                   Cancelar
                 </button>
               )}
@@ -440,104 +428,78 @@ export default function PaginaInicial() {
           </form>
         </section>
 
-        <section style={estilos.card}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.25rem',
-              gap: '0.75rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-              Clientes Cadastrados
-            </h2>
+        <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-stone-900">Clientes Cadastrados</h2>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 carregarClientes(busca);
               }}
-              style={{ display: 'flex', gap: '0.5rem' }}
+              className="flex gap-2"
             >
               <input
-                style={{ ...estilos.input, minWidth: 220 }}
+                className={`${classeInput} min-w-[220px]`}
                 placeholder="Buscar nome, e-mail ou CPF..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
-              <button type="submit" style={estilos.botaoSecundario}>
+              <button
+                type="submit"
+                className="cursor-pointer rounded-lg border border-stone-300 bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200"
+              >
                 Buscar
               </button>
             </form>
           </div>
 
           {carregando ? (
-            <p style={{ color: '#78716c', padding: '2rem 0', textAlign: 'center' }}>
-              Carregando clientes...
-            </p>
+            <p className="py-8 text-center text-sm text-stone-500">Carregando clientes...</p>
           ) : clientes.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#78716c' }}>
-              <p style={{ margin: '0 0 0.25rem', fontWeight: 600, color: '#44403c' }}>
-                Nenhum cliente encontrado
-              </p>
-              <p style={{ margin: 0, fontSize: '0.85rem' }}>
-                Cadastre o primeiro cliente no formulário ao lado.
-              </p>
+            <div className="px-4 py-10 text-center text-stone-500">
+              <p className="mb-1 font-semibold text-stone-700">Nenhum cliente encontrado</p>
+              <p className="text-sm">Cadastre o primeiro cliente no formulário ao lado.</p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '1px solid #e7e5e4', color: '#78716c', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    <th style={{ padding: '0.65rem 0.5rem' }}>Cliente</th>
-                    <th style={{ padding: '0.65rem 0.5rem' }}>Contato</th>
-                    <th style={{ padding: '0.65rem 0.5rem' }}>Tamanho</th>
-                    <th style={{ padding: '0.65rem 0.5rem', textAlign: 'right' }}>Ações</th>
+                  <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wider text-stone-500">
+                    <th className="px-2 py-2.5">Cliente</th>
+                    <th className="px-2 py-2.5">Contato</th>
+                    <th className="px-2 py-2.5">Tamanho</th>
+                    <th className="px-2 py-2.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {clientes.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #f5f5f4' }}>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                          <span
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: '50%',
-                              backgroundColor: '#f5f5f4',
-                              color: '#1c1917',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              flexShrink: 0,
-                            }}
-                          >
+                    <tr key={c.id} className="border-b border-stone-100">
+                      <td className="px-2 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-stone-800">
                             {obterIniciais(c.nome)}
                           </span>
                           <div>
-                            <div style={{ fontWeight: 600, color: '#1c1917' }}>{c.nome}</div>
-                            <div style={{ fontSize: '0.78rem', color: '#78716c' }}>CPF: {c.cpf}</div>
+                            <div className="font-semibold text-stone-900">{c.nome}</div>
+                            <div className="text-xs text-stone-500">CPF: {c.cpf}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
+                      <td className="px-2 py-3">
                         <div>{c.email}</div>
-                        <div style={{ fontSize: '0.78rem', color: '#78716c' }}>{c.telefone}</div>
+                        <div className="text-xs text-stone-500">{c.telefone}</div>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <span style={estilos.badgeTamanho}>{c.tamanho_preferido ?? '-'}</span>
+                      <td className="px-2 py-3">
+                        <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                          {c.tamanho_preferido ?? '-'}
+                        </span>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                      <td className="px-2 py-3 text-right">
+                        <div className="inline-flex gap-1.5">
                           <button
                             type="button"
                             onClick={() => iniciarEdicao(c)}
-                            style={{ ...estilos.botaoSecundario, padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                            className="cursor-pointer rounded-md border border-stone-300 bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-200"
                           >
                             Editar
                           </button>
@@ -545,16 +507,7 @@ export default function PaginaInicial() {
                             <button
                               type="button"
                               onClick={() => removerCliente(c.id)}
-                              style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.8rem',
-                                backgroundColor: '#dc2626',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: 6,
-                                cursor: 'pointer',
-                                fontWeight: 600,
-                              }}
+                              className="cursor-pointer rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700"
                             >
                               Confirmar
                             </button>
@@ -562,15 +515,7 @@ export default function PaginaInicial() {
                             <button
                               type="button"
                               onClick={() => setConfirmarExclusaoId(c.id)}
-                              style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.8rem',
-                                backgroundColor: 'transparent',
-                                color: '#b91c1c',
-                                border: '1px solid #fecaca',
-                                borderRadius: 6,
-                                cursor: 'pointer',
-                              }}
+                              className="cursor-pointer rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50"
                             >
                               Remover
                             </button>

@@ -1,0 +1,71 @@
+name: CI - Aplicacao e Imagens Docker
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend-testes-e-build:
+    name: Backend - Testes e Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Executar testes automatizados
+        run: npm test
+
+      - name: Compilar TypeScript
+        run: npm run build
+
+  frontend-build:
+    name: Frontend - Build Next.js
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: ./frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Build Next.js
+        run: npm run build
+
+  docker-build:
+    name: Docker - Build das Imagens
+    runs-on: ubuntu-latest
+    needs: [backend-testes-e-build, frontend-build]
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Build imagem Backend
+        run: docker build -t cloudops-backend:ci ./backend
+
+      - name: Build imagem Frontend
+        run: docker build -t cloudops-frontend:ci ./frontend

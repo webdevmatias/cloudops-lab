@@ -19,7 +19,8 @@ Isso evita:
 Antes de executar a destruição:
 1. Certifique-se de que os dados relevantes foram exportados (se houver necessidade de backup/evidência).
 2. Verifique se você está apontando para o ambiente correto (`workspace` ou conta adequada).
-3. Tenha as credenciais do provedor de nuvem carregadas em seu terminal.
+3. Tenha as credenciais do provedor de nuvem carregadas em seu terminal. No AWS Academy Learner Lab, as credenciais expiram a cada sessão: inicie o laboratório e atualize o arquivo `~/.aws/credentials` conforme a [seção 4 do guia de infraestrutura](README.md#4-configuração-das-credenciais-learner-lab).
+4. Execute o teardown na mesma máquina que executou o `apply`, pois o state do Terraform é mantido localmente.
 
 ---
 
@@ -37,6 +38,10 @@ terraform plan -destroy
 ```
 
 ### Passo 3: Executar a Destruição
+
+> [!CAUTION]
+> Este comando remove **todos** os recursos gerenciados pelo Terraform sem pedir confirmação, e a operação não pode ser desfeita. Dados armazenados no PostgreSQL serão perdidos. Execute somente após revisar o plano do passo 2.
+
 Após validar o plano:
 ```bash
 terraform destroy -auto-approve

@@ -57,9 +57,39 @@ resource "aws_instance" "banco" {
   subnet_id              = aws_subnet.privada.id
   vpc_security_group_ids = [aws_security_group.banco.id]
   iam_instance_profile   = "LabInstanceProfile"
-  user_data              = file("${path.module}/scripts/instalar-docker.sh")
+
+  # Prepara o disco de dados e instala o Docker
+  user_data = templatefile("${path.module}/scripts/preparar-banco.sh", {
+    volume_id       = aws_ebs_volume.dados_banco.id
+    instalar_docker = file("${path.module}/scripts/instalar-docker.sh")
+  })
+
+  # Os dados ficam no volume separado, então é possível recriar a instância
+  # e garante que um script alterado rode de novo
+  user_data_replace_on_change = true
 
   tags = {
     Name = "${var.projeto}-banco"
   }
+}
+
+# Disco separado para os dados do PostgreSQL, que sobrevive se a instância for recriada
+resource "aws_ebs_volume" "dados_banco" {
+  availability_zone = aws_subnet.privada.availability_zone
+  size              = 10
+  type              = "gp3"
+  encrypted         = true
+
+  tags = {
+    Name = "${var.projeto}-dados-banco"
+  }
+}
+
+resource "aws_volume_attachment" "dados_banco" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.dados_banco.id
+  instance_id = aws_instance.banco.id
+
+  # Desliga a instância antes de desplugar o disco, para não corromper os dados
+  stop_instance_before_detaching = true
 }

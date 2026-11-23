@@ -41,5 +41,5 @@ Este documento formaliza a proposta inicial do projeto para apresentação e val
 | **Observabilidade** | Prometheus, Grafana, Telegraf / Loki | Coleta de métricas, agregação de logs e visualização em dashboards. |
 
 > [!NOTE]
-> As justificativas técnicas detalhadas (considerando funcionalidade, segurança, escalabilidade, manutenção e disponibilidade) devem ser registradas em [`docs/arquitetura/adrs/`](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/README.md).
+> As justificativas técnicas detalhadas (considerando funcionalidade, segurança, escalabilidade, manutenção e disponibilidade) devem ser registradas em [`docs/arquitetura/adrs/`](arquitetura/adrs/README.md).
 

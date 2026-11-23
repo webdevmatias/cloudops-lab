@@ -92,7 +92,7 @@ cloudops-lab/
 - **Segurança e Segredos:** Gestão de credenciais via Infisical (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
 - **Testes e Qualidade:** Testes unitários e de integração integrados ao pipeline de CI.
 - **Observabilidade:** Coleta de métricas (`/metrics`), logs estruturados e dashboards com Prometheus e Grafana.
-- **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](file:///home/lucasmatias/Documentos/cloudops-lab/docs/README.md).
+- **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](docs/README.md).
 
 ---
 
@@ -110,15 +110,15 @@ Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](docs/e
 
 ## Documentação
 
-- [Índice da Documentação](file:///home/lucasmatias/Documentos/cloudops-lab/docs/README.md)
-- [Regras e Diretrizes de Documentação](file:///home/lucasmatias/Documentos/cloudops-lab/docs/REGRAS_DOCUMENTACAO.md)
-- [Proposta Inicial do Projeto](file:///home/lucasmatias/Documentos/cloudops-lab/docs/proposta-inicial.md)
-- [Organização da Equipe e Divisão de Tarefas](file:///home/lucasmatias/Documentos/cloudops-lab/docs/equipe.md)
-- [Arquitetura e Decisões Técnicas (ADRs)](file:///home/lucasmatias/Documentos/cloudops-lab/docs/arquitetura/README.md)
-- [Desenvolvimento Local](file:///home/lucasmatias/Documentos/cloudops-lab/docs/desenvolvimento/README.md)
-- [Infraestrutura como Código (Terraform)](file:///home/lucasmatias/Documentos/cloudops-lab/docs/infraestrutura/README.md)
-- [Guia de Destruição / Teardown](file:///home/lucasmatias/Documentos/cloudops-lab/docs/infraestrutura/teardown.md)
-- [Pipelines de CI/CD](file:///home/lucasmatias/Documentos/cloudops-lab/docs/ci-cd/README.md)
-- [Segurança e Segredos](file:///home/lucasmatias/Documentos/cloudops-lab/docs/seguranca/README.md)
-- [Observabilidade](file:///home/lucasmatias/Documentos/cloudops-lab/docs/observabilidade/README.md)
-- [Guia de Deploy em Nuvem](file:///home/lucasmatias/Documentos/cloudops-lab/docs/operacao/deploy.md)
+- [Índice da Documentação](docs/README.md)
+- [Regras e Diretrizes de Documentação](docs/REGRAS_DOCUMENTACAO.md)
+- [Proposta Inicial do Projeto](docs/proposta-inicial.md)
+- [Organização da Equipe e Divisão de Tarefas](docs/equipe.md)
+- [Arquitetura e Decisões Técnicas (ADRs)](docs/arquitetura/README.md)
+- [Desenvolvimento Local](docs/desenvolvimento/README.md)
+- [Infraestrutura como Código (Terraform)](docs/infraestrutura/README.md)
+- [Guia de Destruição / Teardown](docs/infraestrutura/teardown.md)
+- [Pipelines de CI/CD](docs/ci-cd/README.md)
+- [Segurança e Segredos](docs/seguranca/README.md)
+- [Observabilidade](docs/observabilidade/README.md)
+- [Guia de Deploy em Nuvem](docs/operacao/deploy.md)

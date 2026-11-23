@@ -78,7 +78,7 @@ Todos os desenvolvedores devem seguir as convenções de código e versionamento
 - **Fluxo de branches:** GitFlow (`main`, `develop`, `feature/*`, `release/*`, `hotfix/*`).
 - **Commits:** Conventional Commits com mensagens em pt-BR.
 
-👉 Consulte o guia detalhado com exemplos: [**Padrões de Código e Git (GitFlow & Conventional Commits)**](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/padroes-codigo-git.md).
+👉 Consulte o guia detalhado com exemplos: [**Padrões de Código e Git (GitFlow & Conventional Commits)**](padroes-codigo-git.md).
 
 ---
 

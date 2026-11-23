@@ -6,7 +6,7 @@ Este diretório contém os Registros de Decisões de Arquitetura (*Architecture 
 
 ## Como criar uma nova ADR
 
-1. Copie o template oficial em [`docs/templates/adr-template.md`](file:///home/matias/Documentos/cloudops-lab/docs/templates/adr-template.md).
+1. Copie o template oficial em [`docs/templates/adr-template.md`](../../templates/adr-template.md).
 2. Nomeie o arquivo com numeração sequencial de 3 dígitos e descrição curta em *kebab-case*:
    - Exemplo: `001-escolha-do-framework-backend.md`
    - Exemplo: `002-escolha-do-banco-de-dados.md`

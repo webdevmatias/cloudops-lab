@@ -66,5 +66,5 @@ flowchart TD
 ## 4. Decisões Arquiteturais (ADRs)
 
 Para consultar as justificativas técnicas formais de cada escolha tecnológica, acesse:
-👉 [**Registros de Decisões de Arquitetura (ADRs)**](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/)
+👉 [**Registros de Decisões de Arquitetura (ADRs)**](adrs/)
 

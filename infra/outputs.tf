@@ -27,3 +27,13 @@ output "ids_instancias" {
     banco    = aws_instance.banco.id
   }
 }
+
+# ---------- Imagens ----------
+
+output "repositorios_ecr" {
+  description = "URLs dos repositórios ECR, usadas pela CI para enviar as imagens e pelo deploy para baixá-las."
+  value = {
+    frontend = aws_ecr_repository.frontend.repository_url
+    backend  = aws_ecr_repository.backend.repository_url
+  }
+}

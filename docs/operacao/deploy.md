@@ -200,6 +200,33 @@ O workflow `CD - Deploy na AWS` é executado:
 
 Dois deploys nunca rodam ao mesmo tempo (`concurrency: deploy-aws`). As imagens recebem a tag com os 12 primeiros caracteres do hash do commit, o que permite identificar a versão em execução em cada instância.
 
+As imagens ficam no ECR entre as sessões do Learner Lab, e os contêineres usam `--restart unless-stopped`. Por isso, quando as instâncias são ligadas em uma nova sessão, a aplicação volta sozinha, sem novo deploy.
+
+### 5.1. Depois de Recriar a Infraestrutura
+
+O `terraform apply` cria apenas a infraestrutura: ele **não dispara o deploy**. Após um `terraform destroy` completo seguido de um novo `apply`, o ambiente fica assim:
+
+| Parte | Situação |
+| :--- | :--- |
+| EC2, rede, NAT Gateway e disco do banco | Novos, apenas com o Docker instalado |
+| ECR | Novo e sem imagens |
+| Elastic IPs | Novos: o backend e o frontend têm outros endereços |
+| Banco de dados | Vazio: o volume anterior foi apagado no `destroy` |
+| Segredos do Parameter Store | Mantidos, pois não são gerenciados pelo Terraform |
+
+Para colocar a aplicação no ar novamente:
+
+1. Execute `terraform apply` em `infra/`.
+2. Confira se os segredos do GitHub têm as credenciais da sessão atual. Se não tiverem, atualize-os (seção 4.2).
+3. No GitHub, abra **Actions → CD - Deploy na AWS → Run workflow**.
+
+O workflow gera as imagens novamente, já com o novo endereço do backend gravado no frontend, envia-as ao ECR, implanta banco, backend e frontend e executa o smoke test. As novas URLs aparecem em `terraform output` e no log da etapa **Descobrir infraestrutura**.
+
+No primeiro deploy após a recriação, o PostgreSQL cria as tabelas do `init.sql` no volume vazio, com a mesma senha do Parameter Store, e o backend recria o administrador inicial com o e-mail e a senha do Parameter Store. Os cadastros de clientes feitos antes do `destroy` não são recuperados.
+
+> [!NOTE]
+> O deploy não é disparado pelo Terraform de propósito: o Terraform cuida da infraestrutura e o workflow cuida da aplicação. Mantê-los separados deixa claro qual parte falhou quando algo dá errado.
+
 ---
 
 ## 6. Deploy Manual (Contingência)

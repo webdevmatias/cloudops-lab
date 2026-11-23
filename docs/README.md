@@ -40,7 +40,7 @@ docs/
 │   └── README.md                 # Etapas de testes, build, deploy e validação pós-deploy
 │
 ├── seguranca/                    # Gestão de segredos e credenciais
-│   └── README.md                 # Estratégia de segredos (ex: Infisical) e permissões
+│   └── README.md                 # Estratégia híbrida: Infisical em dev/CI e SSM em produção
 │
 ├── observabilidade/              # Monitoramento e telemetria
 │   └── README.md                 # Métricas (Prometheus), logs e dashboards (Grafana)

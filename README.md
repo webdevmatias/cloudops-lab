@@ -29,6 +29,7 @@ cloudops-lab/
 ├── .env.example                    # Modelo de variáveis de ambiente (sem segredos)
 ├── docker-compose.yml              # Orquestração local (postgres, backend, frontend)
 ├── .github/workflows/ci.yml        # Pipeline de CI (testes, build e imagens Docker)
+├── .github/workflows/cd.yml        # Pipeline de CD (build no ECR e deploy na AWS)
 │
 ├── backend/                        # API REST em Express + TypeScript
 │   ├── Dockerfile                  # Build multi-stage de produção
@@ -61,23 +62,30 @@ cloudops-lab/
 
 ## Como Rodar Localmente
 
-1. Copie o arquivo de exemplo de variáveis de ambiente:
+Os segredos de desenvolvimento são gerenciados no **Infisical** e injetados em tempo de execução. O arquivo `.env.example` serve apenas como referência das variáveis esperadas — não crie um `.env` real com credenciais. Em produção AWS, os segredos ficam no **SSM Parameter Store**, conforme o [ADR 006](docs/arquitetura/adrs/006-estrategia-hibrida-de-segredos.md).
+
+1. Instale o **Infisical CLI** (ex: `winget install Infisical.Infisical` no Windows) e autentique-se:
    ```bash
-   cp .env.example .env
+   infisical login
    ```
 
-2. Gere dois segredos JWT e preencha `ADMIN_PASSWORD`, `JWT_ACCESS_SECRET` e `JWT_REFRESH_SECRET` no `.env`:
+2. Vincule o diretório ao projeto do Infisical (gera o `.infisical.json`, que pode ser versionado pois não contém segredos):
    ```bash
-   openssl rand -hex 32
-   openssl rand -hex 32
+   infisical init
    ```
 
-3. Suba todos os serviços com Docker Compose:
+3. Suba todos os serviços injetando os segredos do ambiente `dev`:
    ```bash
-   docker compose up --build
+   infisical run --env=dev -- docker compose up --build
    ```
 
-4. Acesse a aplicação:
+4. Para rodar backend/frontend manualmente em modo dev:
+   ```bash
+   infisical run --env=dev -- npm --prefix backend run dev
+   infisical run --env=dev -- npm --prefix frontend run dev
+   ```
+
+5. Acesse a aplicação:
    - **Frontend (Painel Admin):** `http://localhost:3000`
    - **Backend (Healthcheck):** `http://localhost:3001/health`
    - **Métricas Prometheus:** `http://localhost:3001/metrics`
@@ -89,7 +97,7 @@ cloudops-lab/
 - **Aplicação:** Funcionalidades reais com frontend, backend, persistência em PostgreSQL e execução em nuvem.
 - **Infraestrutura como Código:** Provisionamento automatizado e versionado com Terraform.
 - **CI/CD:** Pipeline automatizado no GitHub Actions cobrindo verificação de código, testes, build de artefatos, deploy e verificação pós-deploy (*smoke test*).
-- **Segurança e Segredos:** Gestão de credenciais via Infisical (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
+- **Segurança e Segredos:** Gestão de credenciais com **Infisical** em desenvolvimento/CI e **SSM Parameter Store** em produção (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
 - **Testes e Qualidade:** Testes unitários e de integração integrados ao pipeline de CI.
 - **Observabilidade:** Coleta de métricas (`/metrics`), logs estruturados e dashboards com Prometheus e Grafana.
 - **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](docs/README.md).

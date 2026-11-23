@@ -4,7 +4,7 @@ services:
     container_name: cloudops-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cloudops_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cloudops_pass}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD nao definida - use infisical run --env=dev -- docker compose up}"
       POSTGRES_DB: ${POSTGRES_DB:-loja_roupas}
     ports:
       - "5432:5432"
@@ -26,12 +26,12 @@ services:
     container_name: cloudops-backend
     environment:
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-cloudops_user}:${POSTGRES_PASSWORD:-cloudops_pass}@postgres:5432/${POSTGRES_DB:-loja_roupas}
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-cloudops_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-loja_roupas}"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@loja.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-}
+      JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET nao definida - use infisical run --env=dev -- docker compose up}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET nao definida - use infisical run --env=dev -- docker compose up}"
     ports:
       - "3001:3001"
     depends_on:

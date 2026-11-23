@@ -47,7 +47,7 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 ### 3.3. Brenno Araujo — Observabilidade, Segurança e Ambiente Oficial
 - Hospedagem e gestão do **ambiente AWS oficial** no seu Learner Lab (execução do Terraform, segredos da aplicação e credenciais do GitHub).
 - Revisão das ADRs **004** e **005**.
-- Configuração do gerenciamento de segredos com **Infisical** (aplicação e pipeline CI/CD), integrando ou substituindo o SSM Parameter Store já adotado no deploy, garantindo ausência de credenciais no código e nos logs.
+- Definição da estratégia híbrida de segredos: **Infisical** no desenvolvimento local e no CI (`dev`) e **SSM Parameter Store** no runtime de produção, com separação de escopos documentada na ADR 006, garantindo ausência de credenciais no código e nos logs.
 - Implementação da stack de **Observabilidade** (logs estruturados, Prometheus, Grafana, Telegraf/Loki e dashboards), incluindo a proteção do `/metrics`, hoje exposto na porta pública da API.
 - Definição sobre **HTTPS** (implementação ou registro do risco em ADR).
 - Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](arquitetura/adrs/README.md)), incluindo as ADRs **001** a **003**, ainda pendentes, e revisão de conformidade da documentação.

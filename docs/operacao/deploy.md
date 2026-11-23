@@ -74,6 +74,9 @@ A infraestrutura deve estar criada com `terraform apply`, conforme o [guia de in
 ### 3.2. Segredos da Aplicação (Parameter Store)
 Os segredos da aplicação ficam no **SSM Parameter Store**, criptografados (`SecureString`). As instâncias os leem diretamente da AWS durante o deploy, usando a permissão do `LabInstanceProfile`. Eles não passam pelo GitHub, pelo código nem pelos logs.
 
+> [!NOTE]
+> Em produção AWS, o SSM Parameter Store é a fonte dos segredos. O **Infisical** é usado no desenvolvimento local e no CI (ambiente `dev`), conforme a [ADR 006](../arquitetura/adrs/006-estrategia-hibrida-de-segredos.md).
+
 | Parâmetro | Tipo | Uso |
 | :--- | :--- | :--- |
 | `/cloudops-lab/senha-banco` | `SecureString` | Senha do usuário `cloudops_user` do PostgreSQL |

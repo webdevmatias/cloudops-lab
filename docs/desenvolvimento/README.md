@@ -10,7 +10,7 @@ Antes de iniciar, certifique-se de possuir instalado em sua máquina:
 - **Git**
 - **Docker** e **Docker Compose**
 - **Node.js** (versão LTS recomendada, para desenvolvimento local do Frontend em Next.js e Backend em Express + TypeScript)
-- **Infisical CLI** (para injeção local de segredos, se aplicável)
+- **Infisical CLI** (obrigatório para injeção local dos segredos de desenvolvimento)
 
 ---
 
@@ -21,9 +21,12 @@ Antes de iniciar, certifique-se de possuir instalado em sua máquina:
 git clone <URL_DO_REPOSITORIO>
 cd cloudops-lab
 
-# 2. Copiar arquivo de variáveis de ambiente
-cp .env.example .env
+# 2. Autenticar no Infisical e vincular o projeto (gera .infisical.json)
+infisical login
+infisical init
 ```
+
+> O `.env.example` é apenas referência. Não crie um `.env` real: no desenvolvimento local os segredos são injetados pelo Infisical. Em produção AWS, eles ficam no SSM Parameter Store ([ADR 006](../arquitetura/adrs/006-estrategia-hibrida-de-segredos.md)).
 
 ---
 
@@ -32,8 +35,8 @@ cp .env.example .env
 A forma mais rápida de subir todo o ecossistema (frontend, backend e banco de dados) localmente:
 
 ```bash
-# Iniciar todos os serviços em background
-docker compose up -d
+# Iniciar todos os serviços em background com segredos do Infisical
+infisical run --env=dev -- docker compose up -d
 
 # Visualizar logs em tempo real
 docker compose logs -f
@@ -48,26 +51,26 @@ docker compose down
 
 ### 4.1. Banco de Dados (PostgreSQL)
 ```bash
-docker compose up -d postgres
+infisical run --env=dev -- docker compose up -d postgres
 ```
 
 ### 4.2. Backend (Express + TypeScript)
 ```bash
-cd backend/
 # Instalar dependências
-npm install
-# Executar em modo dev
-npm run dev
+npm --prefix backend install
+# Executar em modo dev com segredos injetados
+infisical run --env=dev -- npm --prefix backend run dev
 ```
 
 ### 4.3. Frontend (Next.js)
 ```bash
-cd frontend/
 # Instalar dependências
-npm install
+npm --prefix frontend install
 # Executar servidor local
-npm run dev
+infisical run --env=dev -- npm --prefix frontend run dev
 ```
+
+> Para rodar o backend manualmente fora do Docker, o `DATABASE_URL` do Infisical deve apontar para `localhost:5432`. No Docker Compose, a URL é montada automaticamente com o host `postgres`.
 
 ---
 

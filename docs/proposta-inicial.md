@@ -37,7 +37,7 @@ Este documento formaliza a proposta inicial do projeto para apresentação e val
 | **IaC** | Terraform | Provisionamento declarativo, reproduzível e versionável no Git. |
 | **CI/CD** | GitHub Actions | Integração nativa com o repositório Git para testes, build e deploy automatizado. |
 | **Contêineres** | Docker + Amazon ECR | Padronização de ambiente entre desenvolvimento local e nuvem. |
-| **Segredos** | Infisical | Centralização e injeção segura de credenciais sem exposição no código ou logs. |
+| **Segredos** | Infisical (dev/CI) + SSM Parameter Store (produção) | Injeção segura de credenciais sem exposição no código ou logs, respeitando as restrições de IAM do Learner Lab. |
 | **Observabilidade** | Prometheus, Grafana, Telegraf / Loki | Coleta de métricas, agregação de logs e visualização em dashboards. |
 
 > [!NOTE]

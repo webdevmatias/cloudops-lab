@@ -13,6 +13,16 @@ resource "aws_instance" "frontend" {
   }
 }
 
+# IP fixo, para o endereço do site não mudar quando a instância reiniciar
+resource "aws_eip" "frontend" {
+  domain   = "vpc"
+  instance = aws_instance.frontend.id
+
+  tags = {
+    Name = "${var.projeto}-eip-frontend"
+  }
+}
+
 # ---------- Backend ----------
 
 resource "aws_instance" "backend" {
@@ -25,6 +35,16 @@ resource "aws_instance" "backend" {
 
   tags = {
     Name = "${var.projeto}-backend"
+  }
+}
+
+# IP fixo, porque o frontend chama a API por este endereço (NEXT_PUBLIC_API_URL)
+resource "aws_eip" "backend" {
+  domain   = "vpc"
+  instance = aws_instance.backend.id
+
+  tags = {
+    Name = "${var.projeto}-eip-backend"
   }
 }
 

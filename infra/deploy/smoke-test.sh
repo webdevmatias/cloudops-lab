@@ -21,7 +21,12 @@ for tentativa in $(seq 1 24); do
 done
 
 echo "Testando $URL_FRONTEND"
-CODIGO=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$URL_FRONTEND")
+# O código HTTP vai na última linha da saída. Não usa -o /dev/null, que falha
+# no Git Bash do Windows quando MSYS_NO_PATHCONV está definido
+if ! CODIGO=$(curl -sS -w '\n%{http_code}' --max-time 10 "$URL_FRONTEND" | tail -n 1); then
+  echo "Falha: o frontend nao respondeu" >&2
+  exit 1
+fi
 if [ "$CODIGO" != "200" ]; then
   echo "Falha: o frontend respondeu HTTP $CODIGO" >&2
   exit 1

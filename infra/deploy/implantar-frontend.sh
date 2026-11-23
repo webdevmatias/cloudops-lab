@@ -19,7 +19,8 @@ docker run -d --name frontend --restart unless-stopped \
 docker image prune -f > /dev/null
 
 for _ in $(seq 1 30); do
-  if curl -fsS -o /dev/null http://localhost:3000; then
+  # Esconde os erros das tentativas feitas enquanto o Next.js ainda está subindo
+  if curl -fsS -o /dev/null http://localhost:3000 2> /dev/null; then
     echo "Frontend respondendo na porta 3000"
     exit 0
   fi

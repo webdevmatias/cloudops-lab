@@ -23,4 +23,5 @@ Este diretório contém os Registros de Decisões de Arquitetura (*Architecture 
 | *002* | *Em breve* | *Escolha do provedor de nuvem e arquitetura de computação* | *Proposto* |
 | *003* | *Em breve* | *Estratégia de observabilidade (Prometheus / Grafana / Telegraf)* | *Proposto* |
 | [004](004-topologia-de-rede-vpc-unica.md) | 2026-11-22 | Topologia de rede com VPC única | Proposto |
+| [005](005-acesso-administrativo-via-ssm.md) | 2026-11-22 | Acesso administrativo e deploy via SSM Session Manager | Proposto |
 

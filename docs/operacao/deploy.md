@@ -34,6 +34,13 @@ flowchart LR
 
 Os scripts das etapas 4 a 6 são enviados às instâncias pelo [`executar-remoto.sh`](../../infra/deploy/executar-remoto.sh), que aguarda o agente do SSM ficar online, executa o script e exibe a saída.
 
+Scripts auxiliares, executados manualmente:
+
+| Script | Quando usar |
+| :--- | :--- |
+| [`criar-segredos.sh`](../../infra/deploy/criar-segredos.sh) | Uma vez por conta AWS, para criar os segredos da aplicação (seção 3.2) |
+| [`atualizar-credenciais-github.sh`](../../infra/deploy/atualizar-credenciais-github.sh) | Opcional, a cada sessão, para atualizar os segredos do GitHub (seção 4.2) |
+
 ---
 
 ## 2. Ambiente Oficial
@@ -115,6 +122,10 @@ Não é necessário atualizar os segredos do GitHub em sessões em que nenhum de
 
 ### 4.2. Atualizar os Segredos do GitHub
 
+Há duas formas equivalentes. Use a que preferir.
+
+#### Pela interface do GitHub
+
 1. No Learner Lab, clique em **Start Lab** e aguarde o indicador **AWS** ficar verde.
 2. Clique em **AWS Details** e, ao lado de **AWS CLI**, clique em **Show**.
 3. No GitHub, abra **Settings → Secrets and variables → Actions**.
@@ -128,6 +139,47 @@ Não é necessário atualizar os segredos do GitHub em sessões em que nenhum de
 
 > [!CAUTION]
 > Cole apenas o valor, sem o nome, sem o `=` e sem espaços ou quebras de linha no final. Nunca cole as credenciais em arquivos do repositório, em issues ou em mensagens.
+
+#### Opcional: pelo GitHub CLI
+
+O script [`atualizar-credenciais-github.sh`](../../infra/deploy/atualizar-credenciais-github.sh) lê o arquivo `~/.aws/credentials` e atualiza os três segredos de uma vez, sem exibir os valores. Ele testa as credenciais antes de enviá-las, para não gravar no GitHub credenciais vencidas ou incompletas.
+
+**Uma única vez por pessoa**, instale o GitHub CLI e faça login com uma conta que tenha permissão para alterar os segredos do repositório:
+
+```powershell
+winget install GitHub.cli
+```
+
+Feche e abra novamente o terminal (ou o editor) e execute:
+
+```bash
+gh auth login
+```
+
+Responda **GitHub.com**, **HTTPS** e **Login with a web browser**, copie o código exibido e autorize no navegador. Para conferir:
+
+```bash
+gh auth status
+```
+
+**A cada sessão**, atualize o arquivo `~/.aws/credentials` ([guia de infraestrutura, seção 4](../infraestrutura/README.md#4-configuração-das-credenciais-learner-lab)) e execute no **Git Bash**, na raiz do repositório:
+
+```bash
+bash infra/deploy/atualizar-credenciais-github.sh
+```
+
+Saída esperada:
+
+```text
+Credenciais validas: arn:aws:sts::<ID_DA_CONTA>:assumed-role/voclabs/<USUARIO>
+✓ Set Actions secret AWS_ACCESS_KEY_ID for <DONO>/cloudops-lab
+Atualizado: AWS_ACCESS_KEY_ID
+✓ Set Actions secret AWS_SECRET_ACCESS_KEY for <DONO>/cloudops-lab
+Atualizado: AWS_SECRET_ACCESS_KEY
+✓ Set Actions secret AWS_SESSION_TOKEN for <DONO>/cloudops-lab
+Atualizado: AWS_SESSION_TOKEN
+Segredos do GitHub atualizados.
+```
 
 Se os segredos estiverem desatualizados, o workflow falha na etapa **Configurar credenciais da AWS** ou **Descobrir infraestrutura**, com erros como `ExpiredToken`, `InvalidClientTokenId` ou `UnauthorizedOperation` citando `voc-cancel-cred`.
 

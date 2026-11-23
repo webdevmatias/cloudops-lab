@@ -57,6 +57,7 @@ Após a conclusão do `terraform destroy`, faça uma verificação de garantia n
 - [ ] Nenhum Load Balancer ativo.
 - [ ] Volumes de armazenamento anexados/desanexados eliminados.
 - [ ] Endereços IP estáticos/elásticos desalocados.
+- [ ] Nenhum repositório `cloudops-lab-*` restante no ECR.
 - [ ] Nenhum NAT Gateway com status `Available` (em **VPC → NAT gateways**, ele pode aparecer como `Deleted` por algum tempo).
 - [ ] Chaves de acesso temporárias revogadas.
 

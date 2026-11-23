@@ -16,8 +16,8 @@ A infraestrutura é declarada em código (IaC) e versionada no Git. O ambiente d
 | **Computação** | 3 instâncias EC2 com Docker (frontend, backend e PostgreSQL) e Elastic IPs do frontend e do backend | Implementado |
 | **Saídas** | URLs, IP privado do banco e ids das instâncias (`terraform output`) | Implementado |
 | **Aplicação nas instâncias** | Contêineres do frontend, backend e PostgreSQL em execução | Pendente (deploy) |
-| **Registro de imagens** | ECR | Pendente |
-| **Persistência** | Volume EBS da EC2 do PostgreSQL | Pendente |
+| **Registro de imagens** | Repositórios ECR do frontend e do backend | Implementado |
+| **Persistência** | Volume EBS da EC2 do PostgreSQL | Implementado |
 
 Decisões relacionadas:
 - Topologia de rede: [ADR 004](../arquitetura/adrs/004-topologia-de-rede-vpc-unica.md).
@@ -116,10 +116,10 @@ Definidas em [`infra/instancias.tf`](../../infra/instancias.tf). As três usam U
 | `aws_instance.backend` | `cloudops-lab-backend` | Pública | `cloudops-lab-sg-backend` | Elastic IP `aws_eip.backend` |
 | `aws_instance.banco` | `cloudops-lab-banco` | Privada | `cloudops-lab-sg-banco` | Nenhum |
 
-**Instalação do Docker (`user_data`):** na primeira inicialização, cada instância executa o script [`infra/scripts/instalar-docker.sh`](../../infra/scripts/instalar-docker.sh), que instala o Docker e o Docker Compose. A EC2 do banco baixa os pacotes pelo NAT Gateway.
+**Instalação do Docker (`user_data`):** na primeira inicialização, o frontend e o backend executam o script [`infra/scripts/instalar-docker.sh`](../../infra/scripts/instalar-docker.sh), que instala o Docker e o Docker Compose. O banco executa o [`infra/scripts/preparar-banco.sh`](../../infra/scripts/preparar-banco.sh), que prepara o disco de dados (seção 2.5) e, em seguida, instala o Docker. A EC2 do banco baixa os pacotes pelo NAT Gateway.
 
 > [!IMPORTANT]
-> - O `user_data` roda **apenas na criação** da instância. Alterações no script não afetam instâncias que já existem.
+> - O `user_data` roda **apenas na criação** da instância. No frontend e no backend, alterações no script não afetam instâncias que já existem. No banco, `user_data_replace_on_change = true` faz o Terraform **recriar** a instância quando o script muda, o que é seguro porque os dados ficam no volume separado.
 > - O script precisa ter final de linha LF. O arquivo [`.gitattributes`](../../.gitattributes) força isso para todos os arquivos `.sh`. Com CRLF, o script falha na instância sem nenhum erro no `terraform apply`.
 
 **Elastic IPs:** o Learner Lab para as instâncias ao fim de cada sessão, e o IP público automático muda a cada reinício. Os Elastic IPs mantêm fixos os endereços do frontend e do backend. O endereço do backend é usado pelo frontend no `NEXT_PUBLIC_API_URL`. Após um `terraform destroy` completo, um novo `apply` cria IPs diferentes.
@@ -131,7 +131,48 @@ docker --version
 curl -I https://www.google.com   # na EC2 do banco, confirma a saída pelo NAT
 ```
 
-### 2.5. Tags
+### 2.5. Disco de Dados do PostgreSQL
+
+Os dados do PostgreSQL ficam em um volume EBS separado do disco principal da instância. Assim, se a EC2 do banco for recriada, o volume é plugado na nova instância e os dados são mantidos.
+
+| Recurso Terraform | Nome (tag `Name`) | Configuração |
+| :--- | :--- | :--- |
+| `aws_ebs_volume.dados_banco` | `cloudops-lab-dados-banco` | 10 GB, `gp3`, criptografado, na mesma zona da subnet privada |
+| `aws_volume_attachment.dados_banco` | - | Pluga o volume na EC2 do banco como `/dev/sdf`. Desliga a instância antes de desplugar, para não corromper os dados |
+
+O script [`preparar-banco.sh`](../../infra/scripts/preparar-banco.sh) recebe o id do volume do Terraform, por meio da função `templatefile()`, e executa:
+
+1. Aguarda o volume aparecer na instância, por até 5 minutos. Ele é identificado pelo id em `/dev/disk/by-id/`, pois o nome `/dev/sdf` aparece como `/dev/nvme1n1` em instâncias `t3`.
+2. Formata o volume em `ext4` com o rótulo `dados-banco` **somente se ele ainda não tiver sistema de arquivos**. Um volume com dados nunca é formatado.
+3. Monta o volume em `/dados`, registrando-o no `/etc/fstab` pelo rótulo, com `nofail`, para montar novamente a cada reinício.
+4. Cria a pasta `/dados/postgres`, onde o PostgreSQL grava os dados.
+
+**Verificação**, pelo SSM Session Manager na EC2 do banco:
+
+```bash
+df -h /dados                  # deve mostrar um disco de cerca de 10 GB
+grep dados /etc/fstab
+```
+
+Em caso de falha, o log do `user_data` fica em `/var/log/cloud-init-output.log`.
+
+> [!WARNING]
+> O `terraform destroy` completo **apaga o volume e todos os dados do banco**. Antes do teardown, exporte os dados que precisarem ser mantidos.
+
+### 2.6. Repositórios de Imagens (ECR)
+
+Definidos em [`infra/ecr.tf`](../../infra/ecr.tf). A CI envia as imagens para esses repositórios e o deploy as baixa nas instâncias. O PostgreSQL usa a imagem oficial do Docker Hub e não tem repositório próprio.
+
+| Recurso Terraform | Repositório | Configuração |
+| :--- | :--- | :--- |
+| `aws_ecr_repository.frontend` | `cloudops-lab-frontend` | Tags mutáveis, varredura de vulnerabilidades a cada push, `force_delete` |
+| `aws_ecr_repository.backend` | `cloudops-lab-backend` | Tags mutáveis, varredura de vulnerabilidades a cada push, `force_delete` |
+
+- **Tags mutáveis** permitem reenviar a mesma tag (por exemplo, `latest`) a cada nova versão.
+- **`force_delete`** permite que o `terraform destroy` apague os repositórios mesmo com imagens dentro. Sem ele, o teardown falha.
+- As URLs dos repositórios ficam no output `repositorios_ecr`.
+
+### 2.7. Tags
 
 Todos os recursos recebem automaticamente as tags abaixo, definidas em `default_tags` no provider:
 
@@ -213,10 +254,12 @@ infra/
 ├── variables.tf         # Variáveis de entrada
 ├── main.tf              # Provider, rede e NAT Gateway
 ├── seguranca.tf         # Security Groups e regras
-├── instancias.tf        # Instâncias EC2 e Elastic IPs
+├── instancias.tf        # Instâncias EC2, Elastic IPs e disco de dados do banco
+├── ecr.tf               # Repositórios de imagens
 ├── outputs.tf           # Valores exibidos após o apply
 ├── scripts/
-│   └── instalar-docker.sh  # user_data: instala Docker e Docker Compose
+│   ├── instalar-docker.sh  # user_data do frontend e do backend: instala Docker e Docker Compose
+│   └── preparar-banco.sh   # user_data do banco: prepara o disco de dados e instala o Docker
 └── .terraform.lock.hcl  # Versões travadas dos providers (versionado)
 ```
 
@@ -280,6 +323,7 @@ terraform output
 | `url_api` | `http://<IP_BACKEND>:3001` | `NEXT_PUBLIC_API_URL` no build do frontend |
 | `ip_privado_banco` | IP do PostgreSQL na subnet privada | `DATABASE_URL` do backend |
 | `ids_instancias` | Mapa com os ids das três instâncias | Acesso e deploy via SSM |
+| `repositorios_ecr` | Mapa com as URLs dos repositórios do frontend e do backend | Envio das imagens pela CI e download pelo deploy |
 
 Para obter um único valor sem aspas, por exemplo em scripts:
 ```bash

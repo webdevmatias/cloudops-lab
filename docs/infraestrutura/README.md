@@ -13,7 +13,9 @@ A infraestrutura é declarada em código (IaC) e versionada no Git. O ambiente d
 | **Rede** | VPC, subnet pública, subnet privada, Internet Gateway e tabelas de rotas | Implementado |
 | **Saída da subnet privada** | Elastic IP e NAT Gateway | Implementado |
 | **Segurança** | Security Groups do frontend, backend e banco de dados | Implementado |
-| **Computação** | 3 instâncias EC2 com Docker (frontend, backend e PostgreSQL) | Pendente |
+| **Computação** | 3 instâncias EC2 com Docker (frontend, backend e PostgreSQL) e Elastic IPs do frontend e do backend | Implementado |
+| **Saídas** | URLs, IP privado do banco e ids das instâncias (`terraform output`) | Implementado |
+| **Aplicação nas instâncias** | Contêineres do frontend, backend e PostgreSQL em execução | Pendente (deploy) |
 | **Registro de imagens** | ECR | Pendente |
 | **Persistência** | Volume EBS da EC2 do PostgreSQL | Pendente |
 
@@ -52,7 +54,7 @@ flowchart TB
 ```
 
 > [!NOTE]
-> As instâncias EC2 aparecem no diagrama para indicar onde serão posicionadas, mas ainda não estão implementadas.
+> As instâncias EC2 já são criadas pelo Terraform, com Docker instalado, mas a aplicação ainda não é implantada nelas. Até o deploy existir, as portas 3000 e 3001 recusam conexões.
 
 ### 2.1. Recursos de Rede Provisionados
 
@@ -104,7 +106,32 @@ Definidos em [`infra/seguranca.tf`](../../infra/seguranca.tf). As regras usam os
 - **Sem porta 22:** nenhuma instância aceita SSH. O acesso administrativo e o deploy são feitos pelo SSM Session Manager ([ADR 005](../arquitetura/adrs/005-acesso-administrativo-via-ssm.md)).
 - **Descrições:** as descrições dos grupos e das regras não aceitam acentos. Alterar a descrição de um grupo faz o Terraform destruí-lo e recriá-lo.
 
-### 2.4. Tags
+### 2.4. Instâncias EC2
+
+Definidas em [`infra/instancias.tf`](../../infra/instancias.tf). As três usam Ubuntu 24.04 (a imagem mais recente da Canonical, obtida pelo `data "aws_ami" "ubuntu"`), o tipo `t3.micro` e o perfil `LabInstanceProfile`, que libera o acesso pelo SSM.
+
+| Recurso Terraform | Nome (tag `Name`) | Subnet | Security Group | IP público |
+| :--- | :--- | :--- | :--- | :--- |
+| `aws_instance.frontend` | `cloudops-lab-frontend` | Pública | `cloudops-lab-sg-frontend` | Elastic IP `aws_eip.frontend` |
+| `aws_instance.backend` | `cloudops-lab-backend` | Pública | `cloudops-lab-sg-backend` | Elastic IP `aws_eip.backend` |
+| `aws_instance.banco` | `cloudops-lab-banco` | Privada | `cloudops-lab-sg-banco` | Nenhum |
+
+**Instalação do Docker (`user_data`):** na primeira inicialização, cada instância executa o script [`infra/scripts/instalar-docker.sh`](../../infra/scripts/instalar-docker.sh), que instala o Docker e o Docker Compose. A EC2 do banco baixa os pacotes pelo NAT Gateway.
+
+> [!IMPORTANT]
+> - O `user_data` roda **apenas na criação** da instância. Alterações no script não afetam instâncias que já existem.
+> - O script precisa ter final de linha LF. O arquivo [`.gitattributes`](../../.gitattributes) força isso para todos os arquivos `.sh`. Com CRLF, o script falha na instância sem nenhum erro no `terraform apply`.
+
+**Elastic IPs:** o Learner Lab para as instâncias ao fim de cada sessão, e o IP público automático muda a cada reinício. Os Elastic IPs mantêm fixos os endereços do frontend e do backend. O endereço do backend é usado pelo frontend no `NEXT_PUBLIC_API_URL`. Após um `terraform destroy` completo, um novo `apply` cria IPs diferentes.
+
+**Verificação:** a instalação pode ser conferida acessando a instância pelo SSM Session Manager (em **EC2 → Instâncias → Conectar → SSM Session Manager**) e executando:
+
+```bash
+docker --version
+curl -I https://www.google.com   # na EC2 do banco, confirma a saída pelo NAT
+```
+
+### 2.5. Tags
 
 Todos os recursos recebem automaticamente as tags abaixo, definidas em `default_tags` no provider:
 
@@ -173,6 +200,8 @@ O Terraform lê as credenciais da AWS a partir dos arquivos de configuração do
 - Não é possível criar roles ou usuários IAM. Para instâncias EC2, utiliza-se o perfil existente `LabInstanceProfile`.
 - O `LabInstanceProfile` permite o acesso pelo SSM Session Manager (testado em 2026-11-22). Por isso o par de chaves SSH `vockey` não é utilizado.
 - O crédito do laboratório é limitado. Recursos com custo por hora (EC2, NAT Gateway, Elastic IP) devem ser destruídos após o uso.
+- Ao fim de cada sessão, o Learner Lab **para** as instâncias EC2, mas o NAT Gateway e os Elastic IPs continuam ativos e cobrando.
+- Quando a sessão termina, as credenciais antigas passam a ser bloqueadas pela política `voc-cancel-cred`. Erros de `UnauthorizedOperation` que citam essa política indicam que é preciso renovar as credenciais.
 
 ---
 
@@ -184,6 +213,10 @@ infra/
 ├── variables.tf         # Variáveis de entrada
 ├── main.tf              # Provider, rede e NAT Gateway
 ├── seguranca.tf         # Security Groups e regras
+├── instancias.tf        # Instâncias EC2 e Elastic IPs
+├── outputs.tf           # Valores exibidos após o apply
+├── scripts/
+│   └── instalar-docker.sh  # user_data: instala Docker e Docker Compose
 └── .terraform.lock.hcl  # Versões travadas dos providers (versionado)
 ```
 
@@ -235,8 +268,26 @@ Aplica exatamente o plano revisado:
 terraform apply tfplan
 ```
 
-### 7.5. State
-O state (`terraform.tfstate`) é mantido **localmente** na máquina de quem executa o `apply`. Por isso, apenas uma pessoa deve aplicar e destruir o ambiente por vez. A adoção de backend remoto (S3) está em aberto.
+### 7.5. Saídas (Outputs)
+Ao final de cada `apply`, o Terraform exibe os valores definidos em [`infra/outputs.tf`](../../infra/outputs.tf). Para consultá-los a qualquer momento:
+```bash
+terraform output
+```
+
+| Output | Conteúdo | Uso |
+| :--- | :--- | :--- |
+| `url_frontend` | `http://<IP_FRONTEND>:3000` | Acesso ao site |
+| `url_api` | `http://<IP_BACKEND>:3001` | `NEXT_PUBLIC_API_URL` no build do frontend |
+| `ip_privado_banco` | IP do PostgreSQL na subnet privada | `DATABASE_URL` do backend |
+| `ids_instancias` | Mapa com os ids das três instâncias | Acesso e deploy via SSM |
+
+Para obter um único valor sem aspas, por exemplo em scripts:
+```bash
+terraform output -raw url_api
+```
+
+### 7.6. State
+O state (`terraform.tfstate`) é mantido **localmente** na máquina de quem executa o `apply`. Por isso, apenas uma pessoa deve aplicar e destruir o ambiente por vez, e os outputs só podem ser consultados nessa máquina. A adoção de backend remoto (S3) está em aberto.
 
 ---
 

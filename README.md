@@ -104,7 +104,7 @@ cloudops-lab/
 | **Jeane Vitoria** | Infraestrutura AWS com Terraform (VPC, subnets, NAT, Security Groups, 3 EC2, EBS, ECR), Automação e Deploy (CD) | Deploy via SSM, segredos da aplicação no SSM Parameter Store, smoke test, guias de infraestrutura, deploy e *teardown*, ADRs 004 e 005 |
 | **Brenno Araujo** | Observabilidade (Prometheus, Grafana, logs) e Segurança | Ambiente AWS oficial, estratégia de segredos (Infisical), HTTPS, ADRs e governança da documentação |
 
-Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](file:///home/lucasmatias/Documentos/cloudops-lab/docs/equipe.md).
+Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](docs/equipe.md).
 
 ---
 

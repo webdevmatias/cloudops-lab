@@ -41,7 +41,7 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 - Automação da configuração das instâncias com **scripts de `user_data`** (instalação do Docker e preparação do disco de dados do banco).
 - Gestão dos **segredos da aplicação** no SSM Parameter Store (`criar-segredos.sh`).
 - **Deploy automatizado** via SSM no GitHub Actions (`cd.yml`), com **smoke test** pós-deploy.
-- Guias de **infraestrutura**, **deploy** e **teardown** ([`teardown.md`](file:///home/matias/Documentos/cloudops-lab/docs/infraestrutura/teardown.md)).
+- Guias de **infraestrutura**, **deploy** e **teardown** ([`teardown.md`](infraestrutura/teardown.md)).
 - ADRs **004** (topologia de rede com VPC única) e **005** (acesso administrativo e deploy via SSM).
 
 ### 3.3. Brenno Araujo — Observabilidade, Segurança e Ambiente Oficial
@@ -50,7 +50,7 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 - Configuração do gerenciamento de segredos com **Infisical** (aplicação e pipeline CI/CD), integrando ou substituindo o SSM Parameter Store já adotado no deploy, garantindo ausência de credenciais no código e nos logs.
 - Implementação da stack de **Observabilidade** (logs estruturados, Prometheus, Grafana, Telegraf/Loki e dashboards), incluindo a proteção do `/metrics`, hoje exposto na porta pública da API.
 - Definição sobre **HTTPS** (implementação ou registro do risco em ADR).
-- Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/README.md)), incluindo as ADRs **001** a **003**, ainda pendentes, e revisão de conformidade da documentação.
+- Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](arquitetura/adrs/README.md)), incluindo as ADRs **001** a **003**, ainda pendentes, e revisão de conformidade da documentação.
 
 ---
 

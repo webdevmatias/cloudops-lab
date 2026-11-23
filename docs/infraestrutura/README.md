@@ -10,14 +10,16 @@ A infraestrutura é declarada em código (IaC) e versionada no Git. O ambiente d
 
 | Camada | Recursos | Situação |
 | :--- | :--- | :--- |
-| **Rede** | VPC, subnet pública, subnet privada, Internet Gateway e tabela de rotas pública | Implementado |
-| **Segurança** | Security Groups do frontend, backend e banco de dados | Pendente |
+| **Rede** | VPC, subnet pública, subnet privada, Internet Gateway e tabelas de rotas | Implementado |
+| **Saída da subnet privada** | Elastic IP e NAT Gateway | Implementado |
+| **Segurança** | Security Groups do frontend, backend e banco de dados | Implementado |
 | **Computação** | 3 instâncias EC2 com Docker (frontend, backend e PostgreSQL) | Pendente |
-| **Saída da subnet privada** | NAT Gateway | Pendente |
 | **Registro de imagens** | ECR | Pendente |
 | **Persistência** | Volume EBS da EC2 do PostgreSQL | Pendente |
 
-A justificativa da topologia de rede está registrada na [ADR 004](../arquitetura/adrs/004-topologia-de-rede-vpc-unica.md).
+Decisões relacionadas:
+- Topologia de rede: [ADR 004](../arquitetura/adrs/004-topologia-de-rede-vpc-unica.md).
+- Acesso administrativo e deploy via SSM, sem SSH: [ADR 005](../arquitetura/adrs/005-acesso-administrativo-via-ssm.md).
 
 ---
 
@@ -33,6 +35,7 @@ flowchart TB
         subgraph Publica ["Subnet pública (10.0.1.0/24) - us-east-1a"]
             Front[EC2 Frontend]
             Back[EC2 Backend]
+            NAT[NAT Gateway<br/>cloudops-lab-nat]
         end
 
         subgraph Privada ["Subnet privada (10.0.2.0/24) - us-east-1a"]
@@ -40,9 +43,12 @@ flowchart TB
         end
     end
 
-    Internet <--> IGW
-    IGW <--> Publica
+    Internet <-->|TCP 3000 e 3001| IGW
+    IGW <--> Front
+    IGW <--> Back
     Back -->|TCP 5432| DB
+    DB -.->|somente saída| NAT
+    NAT -.-> IGW
 ```
 
 > [!NOTE]
@@ -58,6 +64,10 @@ flowchart TB
 | `aws_internet_gateway.principal` | `cloudops-lab-igw` | Anexado à VPC |
 | `aws_route_table.publica` | `cloudops-lab-rt-publica` | Rota `0.0.0.0/0` para o Internet Gateway |
 | `aws_route_table_association.publica` | - | Associa a subnet pública à tabela de rotas pública |
+| `aws_eip.nat` | `cloudops-lab-eip-nat` | IP público fixo usado pelo NAT Gateway |
+| `aws_nat_gateway.principal` | `cloudops-lab-nat` | Fica na subnet pública e usa o Elastic IP |
+| `aws_route_table.privada` | `cloudops-lab-rt-privada` | Rota `0.0.0.0/0` para o NAT Gateway |
+| `aws_route_table_association.privada` | - | Associa a subnet privada à tabela de rotas privada |
 
 ### 2.2. Tabelas de Rotas
 
@@ -68,9 +78,33 @@ flowchart TB
 | `10.0.0.0/16` | `local` |
 | `0.0.0.0/0` | Internet Gateway |
 
-**Subnet privada:** não possui associação explícita e usa a tabela de rotas principal da VPC, que contém apenas a rota `local`. Por isso, o PostgreSQL não é alcançável pela internet e também não tem saída para ela. A saída para baixar imagens e pacotes será feita por NAT Gateway (pendente).
+**Tabela privada** (`cloudops-lab-rt-privada`), associada à subnet privada:
 
-### 2.3. Tags
+| Destino | Alvo |
+| :--- | :--- |
+| `10.0.0.0/16` | `local` |
+| `0.0.0.0/0` | NAT Gateway |
+
+O NAT Gateway fica na subnet **pública**, pois precisa da rota para o Internet Gateway. Ele permite que a EC2 do PostgreSQL inicie conexões de saída (download de imagens e pacotes e registro no SSM), mas não aceita conexões iniciadas pela internet.
+
+> [!WARNING]
+> O NAT Gateway e o Elastic IP têm custo por hora e, no Learner Lab, **continuam ativos após o fim da sessão**. Destrua-os ao final de cada dia de trabalho, conforme a [remoção parcial do NAT](teardown.md#5-remoção-parcial-somente-o-nat-gateway).
+
+### 2.3. Security Groups
+
+Definidos em [`infra/seguranca.tf`](../../infra/seguranca.tf). As regras usam os recursos `aws_vpc_security_group_ingress_rule` e `aws_vpc_security_group_egress_rule`, separados do grupo.
+
+| Security Group | Entrada | Origem | Motivo |
+| :--- | :--- | :--- | :--- |
+| `cloudops-lab-sg-frontend` | TCP 3000 | `0.0.0.0/0` | Acesso dos usuários ao Next.js |
+| `cloudops-lab-sg-backend` | TCP 3001 | `0.0.0.0/0` | O navegador chama a API diretamente (`NEXT_PUBLIC_API_URL`) |
+| `cloudops-lab-sg-banco` | TCP 5432 | `cloudops-lab-sg-backend` | Somente o backend acessa o PostgreSQL |
+
+- **Saída:** os três grupos liberam todo o tráfego de saída (`0.0.0.0/0`), necessário para baixar imagens, pacotes e para o agente do SSM. O Terraform não cria a regra de saída padrão da AWS, por isso ela é declarada explicitamente.
+- **Sem porta 22:** nenhuma instância aceita SSH. O acesso administrativo e o deploy são feitos pelo SSM Session Manager ([ADR 005](../arquitetura/adrs/005-acesso-administrativo-via-ssm.md)).
+- **Descrições:** as descrições dos grupos e das regras não aceitam acentos. Alterar a descrição de um grupo faz o Terraform destruí-lo e recriá-lo.
+
+### 2.4. Tags
 
 Todos os recursos recebem automaticamente as tags abaixo, definidas em `default_tags` no provider:
 
@@ -137,7 +171,7 @@ O Terraform lê as credenciais da AWS a partir dos arquivos de configuração do
 ### 4.1. Restrições do Learner Lab
 
 - Não é possível criar roles ou usuários IAM. Para instâncias EC2, utiliza-se o perfil existente `LabInstanceProfile`.
-- O par de chaves SSH disponível é o `vockey`.
+- O `LabInstanceProfile` permite o acesso pelo SSM Session Manager (testado em 2026-11-22). Por isso o par de chaves SSH `vockey` não é utilizado.
 - O crédito do laboratório é limitado. Recursos com custo por hora (EC2, NAT Gateway, Elastic IP) devem ser destruídos após o uso.
 
 ---
@@ -148,11 +182,12 @@ O Terraform lê as credenciais da AWS a partir dos arquivos de configuração do
 infra/
 ├── terraform.tf         # Versão mínima do Terraform e do provider AWS
 ├── variables.tf         # Variáveis de entrada
-├── main.tf              # Provider e recursos
+├── main.tf              # Provider, rede e NAT Gateway
+├── seguranca.tf         # Security Groups e regras
 └── .terraform.lock.hcl  # Versões travadas dos providers (versionado)
 ```
 
-Arquivos gerados localmente e **não versionados** (ignorados pelo `.gitignore`): `.terraform/`, `terraform.tfstate`, `terraform.tfstate.backup` e `*.tfvars`.
+Arquivos gerados localmente e **não versionados** (ignorados pelo `.gitignore`): `.terraform/`, `terraform.tfstate`, `terraform.tfstate.backup`, `tfplan` e `*.tfvars`.
 
 ---
 

@@ -57,5 +57,27 @@ Após a conclusão do `terraform destroy`, faça uma verificação de garantia n
 - [ ] Nenhum Load Balancer ativo.
 - [ ] Volumes de armazenamento anexados/desanexados eliminados.
 - [ ] Endereços IP estáticos/elásticos desalocados.
+- [ ] Nenhum NAT Gateway com status `Available` (em **VPC → NAT gateways**, ele pode aparecer como `Deleted` por algum tempo).
 - [ ] Chaves de acesso temporárias revogadas.
+
+---
+
+## 5. Remoção Parcial: Somente o NAT Gateway
+
+O NAT Gateway e o seu Elastic IP são cobrados por hora mesmo sem uso e continuam ativos após o fim da sessão do Learner Lab. Ao final de um dia de trabalho, é possível removê-los e manter o restante da rede, que não tem custo:
+
+```bash
+cd infra/
+terraform destroy -target="aws_nat_gateway.principal" -target="aws_eip.nat"
+```
+
+O plano exibido deve listar apenas:
+- `aws_nat_gateway.principal`
+- `aws_eip.nat`
+- `aws_route_table.privada` e `aws_route_table_association.privada`, que dependem do NAT
+
+Digite `yes` somente se nenhum outro recurso aparecer na lista. Para recriar o NAT na próxima sessão, execute `terraform plan -out=tfplan` e `terraform apply tfplan` normalmente.
+
+> [!NOTE]
+> Sem o NAT, a EC2 do PostgreSQL perde a saída para a internet e o acesso pelo SSM. O banco continua acessível pelo backend.
 

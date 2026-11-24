@@ -14,13 +14,15 @@ flowchart LR
     Descobrir -->|2. build| Imagens[Imagens backend e frontend]
     Imagens -->|3. push| ECR[(ECR)]
     GH -->|4. SSM| Banco[EC2 banco<br/>PostgreSQL]
-    GH -->|5. SSM| Back[EC2 backend<br/>API]
+    GH -->|5. SSM| Back[EC2 backend<br/>API + observabilidade]
     GH -->|6. SSM| Front[EC2 frontend<br/>Next.js]
+    GH -->|7. SSM| Obs[Stack Prometheus/Grafana<br/>Loki/Promtail]
     ECR -.->|pull| Back
     ECR -.->|pull| Front
     PS[(Parameter Store<br/>segredos)] -.->|leitura| Banco
     PS -.->|leitura| Back
-    GH -->|7. smoke test| Back
+    PS -.->|leitura| Obs
+    GH -->|8. smoke test| Back
 ```
 
 | Etapa | Script | O que faz |
@@ -28,9 +30,10 @@ flowchart LR
 | 1 | [`descobrir-infra.sh`](../../infra/deploy/descobrir-infra.sh) | Encontra as instâncias e os Elastic IPs pelas tags `Name`, sem depender do state do Terraform. Liga as instâncias paradas. |
 | 2 e 3 | `cd.yml` | Gera as imagens com a tag do commit e `latest` e envia ao ECR. O frontend é gerado com o endereço do backend em `NEXT_PUBLIC_API_URL`. |
 | 4 | [`implantar-banco.sh`](../../infra/deploy/implantar-banco.sh) | Sobe o PostgreSQL com os dados em `/dados/postgres` (volume EBS) e cria as tabelas do [`init.sql`](../../database/init.sql) na primeira execução. |
-| 5 | [`implantar-backend.sh`](../../infra/deploy/implantar-backend.sh) | Baixa a imagem do ECR, lê os segredos e sobe a API na porta 3001. |
+| 5 | [`implantar-backend.sh`](../../infra/deploy/implantar-backend.sh) | Baixa a imagem do ECR, lê os segredos e sobe a API nas portas 3001 (API) e 9464 (métricas internas). |
 | 6 | [`implantar-frontend.sh`](../../infra/deploy/implantar-frontend.sh) | Baixa a imagem do ECR e sobe o Next.js na porta 3000. |
-| 7 | [`smoke-test.sh`](../../infra/deploy/smoke-test.sh) | Verifica, de fora da AWS, o `/health` do backend e a página do frontend. |
+| 7 | [`implantar-monitoramento.sh`](../../infra/deploy/implantar-monitoramento.sh) | Sobe Prometheus, Grafana, Loki e Promtail na EC2 do backend. |
+| 8 | [`smoke-test.sh`](../../infra/deploy/smoke-test.sh) | Verifica, de fora da AWS, o `/health` do backend e a página do frontend. |
 
 Os scripts das etapas 4 a 6 são enviados às instâncias pelo [`executar-remoto.sh`](../../infra/deploy/executar-remoto.sh), que aguarda o agente do SSM ficar online, executa o script e exibe a saída.
 
@@ -83,6 +86,7 @@ Os segredos da aplicação ficam no **SSM Parameter Store**, criptografados (`Se
 | `/cloudops-lab/jwt-access-secret` | `SecureString` | Assinatura dos tokens de acesso (`JWT_ACCESS_SECRET`) |
 | `/cloudops-lab/jwt-refresh-secret` | `SecureString` | Assinatura dos tokens de renovação (`JWT_REFRESH_SECRET`) |
 | `/cloudops-lab/senha-admin` | `SecureString` | Senha do administrador inicial (`ADMIN_PASSWORD`) |
+| `/cloudops-lab/senha-grafana` | `SecureString` | Senha do usuário `admin` do Grafana |
 | `/cloudops-lab/email-admin` | `String` | E-mail do administrador inicial (`ADMIN_EMAIL`) |
 
 Para criá-los, execute uma vez no **Git Bash**, na raiz do repositório, com as credenciais locais válidas:
@@ -102,7 +106,14 @@ aws ssm get-parameter --name /cloudops-lab/senha-admin --with-decryption \
   --query Parameter.Value --output text
 ```
 
-Também é possível consultá-la no console, em **Systems Manager → Parameter Store**.
+A senha do Grafana fica em `/cloudops-lab/senha-grafana`:
+
+```bash
+aws ssm get-parameter --name /cloudops-lab/senha-grafana --with-decryption \
+  --query Parameter.Value --output text
+```
+
+Também é possível consultá-las no console, em **Systems Manager → Parameter Store**.
 
 > [!NOTE]
 > Os parâmetros não são criados pelo Terraform, para que os valores não fiquem gravados no `terraform.tfstate`. Por isso, o `terraform destroy` não os remove.
@@ -223,7 +234,9 @@ Para colocar a aplicação no ar novamente:
 2. Confira se os segredos do GitHub têm as credenciais da sessão atual. Se não tiverem, atualize-os (seção 4.2).
 3. No GitHub, abra **Actions → CD - Deploy na AWS → Run workflow**.
 
-O workflow gera as imagens novamente, já com o novo endereço do backend gravado no frontend, envia-as ao ECR, implanta banco, backend e frontend e executa o smoke test. As novas URLs aparecem em `terraform output` e no log da etapa **Descobrir infraestrutura**.
+O workflow gera as imagens novamente, já com o novo endereço do backend gravado no frontend, envia-as ao ECR, implanta banco, backend, frontend e a stack de observabilidade, e executa o smoke test. As novas URLs aparecem em `terraform output` e no log da etapa **Descobrir infraestrutura**.
+
+A stack de observabilidade é enviada como um pacote `tar.gz` para a EC2 do backend e sobe com Docker Compose. O acesso ao Grafana é feito por SSM Port Forwarding, conforme o [guia de observabilidade](../observabilidade/README.md#5-acesso-em-produção-ssm-port-forwarding).
 
 No primeiro deploy após a recriação, o PostgreSQL cria as tabelas do `init.sql` no volume vazio, com a mesma senha do Parameter Store, e o backend recria o administrador inicial com o e-mail e a senha do Parameter Store. Os cadastros de clientes feitos antes do `destroy` não são recuperados.
 
@@ -261,7 +274,12 @@ bash infra/deploy/executar-remoto.sh "$id_backend" infra/deploy/implantar-backen
 bash infra/deploy/executar-remoto.sh "$id_frontend" infra/deploy/implantar-frontend.sh \
   AWS_REGION="$AWS_REGION" IMAGEM="$registro/$PROJETO-frontend:$TAG"
 
-# 5. Smoke test
+# 5. Deploy da observabilidade na EC2 do backend
+tar -czf /tmp/observabilidade.tar.gz -C infra/observabilidade .
+bash infra/deploy/executar-remoto.sh "$id_backend" infra/deploy/implantar-monitoramento.sh \
+  PROJETO="$PROJETO" OBS_B64="$(base64 -w0 /tmp/observabilidade.tar.gz)"
+
+# 6. Smoke test
 bash infra/deploy/smoke-test.sh "$url_api" "$url_frontend"
 ```
 
@@ -290,5 +308,4 @@ bash infra/deploy/smoke-test.sh http://<IP_BACKEND>:3001 http://<IP_FRONTEND>:30
 | Problema | Impacto | Responsável |
 | :--- | :--- | :--- |
 | O cookie de renovação do login usa `secure: true` e `sameSite: 'strict'` em produção, mas o ambiente não tem HTTPS e o frontend e o backend estão em endereços diferentes | O login inicial funciona, mas a sessão não é renovada após o token de acesso expirar (15 minutos) | Aplicação (Lucas Matias) |
-| O `/metrics` é exposto na mesma porta pública da API (3001) | Métricas internas acessíveis por qualquer pessoa na internet | Observabilidade (Brenno Araujo) |
 | O tráfego usa HTTP, sem TLS | Senha de login e tokens trafegam sem criptografia | Segurança (Brenno Araujo) |

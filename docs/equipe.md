@@ -48,9 +48,9 @@ Para garantir que **todos os integrantes participem do desenvolvimento, conheça
 - Hospedagem e gestão do **ambiente AWS oficial** no seu Learner Lab (execução do Terraform, segredos da aplicação e credenciais do GitHub).
 - Revisão das ADRs **004** e **005**.
 - Definição da estratégia híbrida de segredos: **Infisical** no desenvolvimento local e no CI (`dev`) e **SSM Parameter Store** no runtime de produção, com separação de escopos documentada na ADR 006, garantindo ausência de credenciais no código e nos logs.
-- Implementação da stack de **Observabilidade** (logs estruturados, Prometheus, Grafana, Telegraf/Loki e dashboards), incluindo a proteção do `/metrics`, hoje exposto na porta pública da API.
+- Implementação da stack de **Observabilidade** (logs estruturados, Prometheus, Grafana, Loki e Promtail), com métricas internas na porta `9464` e dashboards no Grafana, conforme a ADR 003.
 - Definição sobre **HTTPS** (implementação ou registro do risco em ADR).
-- Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](arquitetura/adrs/README.md)), incluindo as ADRs **001** a **003**, ainda pendentes, e revisão de conformidade da documentação.
+- Condução e registro das justificativas técnicas via **ADRs** ([`docs/arquitetura/adrs/`](arquitetura/adrs/README.md)), incluindo as ADRs **001** e **002**, ainda pendentes, e revisão de conformidade da documentação.
 
 ---
 

@@ -88,5 +88,13 @@ jobs:
             AWS_REGION="$AWS_REGION" \
             IMAGEM="${{ steps.infra.outputs.registro }}/$PROJETO-frontend:${{ steps.versao.outputs.tag }}"
 
+      - name: Deploy da observabilidade
+        run: |
+          tar -czf /tmp/observabilidade.tar.gz -C infra/observabilidade .
+          bash infra/deploy/executar-remoto.sh "${{ steps.infra.outputs.id_backend }}" \
+            infra/deploy/implantar-monitoramento.sh \
+            PROJETO="$PROJETO" \
+            OBS_B64="$(base64 -w0 /tmp/observabilidade.tar.gz)"
+
       - name: Smoke test
         run: bash infra/deploy/smoke-test.sh "${{ steps.infra.outputs.url_api }}" "${{ steps.infra.outputs.url_frontend }}"

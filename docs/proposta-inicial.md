@@ -38,7 +38,7 @@ Este documento formaliza a proposta inicial do projeto para apresentação e val
 | **CI/CD** | GitHub Actions | Integração nativa com o repositório Git para testes, build e deploy automatizado. |
 | **Contêineres** | Docker + Amazon ECR | Padronização de ambiente entre desenvolvimento local e nuvem. |
 | **Segredos** | Infisical (dev/CI) + SSM Parameter Store (produção) | Injeção segura de credenciais sem exposição no código ou logs, respeitando as restrições de IAM do Learner Lab. |
-| **Observabilidade** | Prometheus, Grafana, Telegraf / Loki | Coleta de métricas, agregação de logs e visualização em dashboards. |
+| **Observabilidade** | Prometheus, Grafana, Loki e Promtail | Coleta de métricas, agregação de logs e visualização em dashboards. |
 
 > [!NOTE]
 > As justificativas técnicas detalhadas (considerando funcionalidade, segurança, escalabilidade, manutenção e disponibilidade) devem ser registradas em [`docs/arquitetura/adrs/`](arquitetura/adrs/README.md).

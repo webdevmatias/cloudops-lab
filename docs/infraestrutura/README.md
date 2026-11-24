@@ -14,6 +14,7 @@ A infraestrutura é declarada em código (IaC) e versionada no Git. O ambiente d
 | **Saída da subnet privada** | Elastic IP e NAT Gateway | Implementado |
 | **Segurança** | Security Groups do frontend, backend e banco de dados | Implementado |
 | **Computação** | 3 instâncias EC2 com Docker (frontend, backend e PostgreSQL) e Elastic IPs do frontend e do backend | Implementado |
+| **Observabilidade** | Prometheus, Grafana, Loki e Promtail na EC2 do backend | Implementado |
 | **Saídas** | URLs, IP privado do banco e ids das instâncias (`terraform output`) | Implementado |
 | **Aplicação nas instâncias** | Contêineres do frontend, backend e PostgreSQL em execução | Pendente (deploy) |
 | **Registro de imagens** | Repositórios ECR do frontend e do backend | Implementado |
@@ -36,7 +37,10 @@ flowchart TB
 
         subgraph Publica ["Subnet pública (10.0.1.0/24) - us-east-1a"]
             Front[EC2 Frontend]
-            Back[EC2 Backend]
+            subgraph EC2Back [EC2 Backend]
+                Back[API]
+                Obs[Prometheus + Grafana<br/>Loki + Promtail]
+            end
             NAT[NAT Gateway<br/>cloudops-lab-nat]
         end
 
@@ -49,6 +53,8 @@ flowchart TB
     IGW <--> Front
     IGW <--> Back
     Back -->|TCP 5432| DB
+    Back -->|:9464/metrics| Obs
+    Ops[Operador] -.->|SSM Port Forwarding| Obs
     DB -.->|somente saída| NAT
     NAT -.-> IGW
 ```
@@ -104,17 +110,18 @@ Definidos em [`infra/seguranca.tf`](../../infra/seguranca.tf). As regras usam os
 
 - **Saída:** os três grupos liberam todo o tráfego de saída (`0.0.0.0/0`), necessário para baixar imagens, pacotes e para o agente do SSM. O Terraform não cria a regra de saída padrão da AWS, por isso ela é declarada explicitamente.
 - **Sem porta 22:** nenhuma instância aceita SSH. O acesso administrativo e o deploy são feitos pelo SSM Session Manager ([ADR 005](../arquitetura/adrs/005-acesso-administrativo-via-ssm.md)).
+- **Observabilidade:** a porta `9464` (métricas) não é aberta no Security Group. Prometheus (`9090`) e Grafana (`3002`) escutam somente em `127.0.0.1` na EC2 do backend; o acesso é feito por SSM Port Forwarding.
 - **Descrições:** as descrições dos grupos e das regras não aceitam acentos. Alterar a descrição de um grupo faz o Terraform destruí-lo e recriá-lo.
 
 ### 2.4. Instâncias EC2
 
-Definidas em [`infra/instancias.tf`](../../infra/instancias.tf). As três usam Ubuntu 24.04 (a imagem mais recente da Canonical, obtida pelo `data "aws_ami" "ubuntu"`), o tipo `t3.micro` e o perfil `LabInstanceProfile`, que libera o acesso pelo SSM.
+Definidas em [`infra/instancias.tf`](../../infra/instancias.tf). As três usam Ubuntu 24.04 (a imagem mais recente da Canonical, obtida pelo `data "aws_ami" "ubuntu"`), o perfil `LabInstanceProfile` e Docker. O frontend e o banco usam `t3.micro`; o backend usa `t3.small` para acomodar também a stack de observabilidade.
 
-| Recurso Terraform | Nome (tag `Name`) | Subnet | Security Group | IP público |
-| :--- | :--- | :--- | :--- | :--- |
-| `aws_instance.frontend` | `cloudops-lab-frontend` | Pública | `cloudops-lab-sg-frontend` | Elastic IP `aws_eip.frontend` |
-| `aws_instance.backend` | `cloudops-lab-backend` | Pública | `cloudops-lab-sg-backend` | Elastic IP `aws_eip.backend` |
-| `aws_instance.banco` | `cloudops-lab-banco` | Privada | `cloudops-lab-sg-banco` | Nenhum |
+| Recurso Terraform | Nome (tag `Name`) | Tipo | Subnet | Security Group | IP público |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `aws_instance.frontend` | `cloudops-lab-frontend` | `t3.micro` | Pública | `cloudops-lab-sg-frontend` | Elastic IP `aws_eip.frontend` |
+| `aws_instance.backend` | `cloudops-lab-backend` | `t3.small` | Pública | `cloudops-lab-sg-backend` | Elastic IP `aws_eip.backend` |
+| `aws_instance.banco` | `cloudops-lab-banco` | `t3.micro` | Privada | `cloudops-lab-sg-banco` | Nenhum |
 
 **Instalação do Docker (`user_data`):** na primeira inicialização, o frontend e o backend executam o script [`infra/scripts/instalar-docker.sh`](../../infra/scripts/instalar-docker.sh), que instala o Docker e o Docker Compose. O banco executa o [`infra/scripts/preparar-banco.sh`](../../infra/scripts/preparar-banco.sh), que prepara o disco de dados (seção 2.5) e, em seguida, instala o Docker. A EC2 do banco baixa os pacotes pelo NAT Gateway.
 
@@ -180,6 +187,22 @@ Todos os recursos recebem automaticamente as tags abaixo, definidas em `default_
 | :--- | :--- |
 | `Projeto` | Valor da variável `projeto` |
 | `GerenciadoPor` | `terraform` |
+
+### 2.8. Stack de Observabilidade
+
+A stack fica em [`infra/observabilidade/`](../../infra/observabilidade/) e é enviada à EC2 do backend pelo deploy:
+
+| Serviço | Imagem | Função |
+| :--- | :--- | :--- |
+| Prometheus | `prom/prometheus` | Coleta `http://host.docker.internal:9464/metrics` |
+| Grafana | `grafana/grafana` | Dashboards e consultas ao Loki |
+| Loki | `grafana/loki` | Armazenamento de logs por 24h |
+| Promtail | `grafana/promtail` | Coleta logs Docker e envia ao Loki |
+
+- Prometheus e Grafana escutam apenas em `127.0.0.1`; o Loki fica na rede interna do Compose.
+- O acesso é feito por SSM Port Forwarding, conforme o [guia de observabilidade](../observabilidade/README.md#5-acesso-em-produção-ssm-port-forwarding).
+- A stack é declarada em Docker Compose, com limites de memória e volumes nomeados.
+- O único recurso Terraform alterado é o tipo da EC2 do backend (`t3.small`); não há nova instância, Security Group ou volume.
 
 ---
 
@@ -257,6 +280,8 @@ infra/
 ├── instancias.tf        # Instâncias EC2, Elastic IPs e disco de dados do banco
 ├── ecr.tf               # Repositórios de imagens
 ├── outputs.tf           # Valores exibidos após o apply
+├── observabilidade/     # Stack Prometheus, Grafana, Loki e Promtail
+├── deploy/              # Scripts de deploy executados via SSM
 ├── scripts/
 │   ├── instalar-docker.sh  # user_data do frontend e do backend: instala Docker e Docker Compose
 │   └── preparar-banco.sh   # user_data do banco: prepara o disco de dados e instala o Docker

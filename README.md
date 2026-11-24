@@ -15,10 +15,11 @@ Todas as escolhas de arquitetura, serviços de nuvem e ferramentas são justific
 ## Stack e Arquitetura
 
 - **Frontend:** Next.js (App Router + TypeScript + Tailwind CSS) em contêiner Docker (EC2 dedicada).
-- **Backend:** Express + TypeScript (validação Zod, `helmet`, `express-rate-limit`, métricas Prometheus em `/metrics` e `/health`) em contêiner Docker (EC2 dedicada).
+- **Backend:** Express + TypeScript (validação Zod, `helmet`, `express-rate-limit`, logs JSON, métricas Prometheus na porta interna `9464` e `/health`) em contêiner Docker (EC2 dedicada).
 - **Banco de Dados:** PostgreSQL 16 em contêiner Docker com volume persistente (EC2 dedicada).
 - **Autenticação:** Painel Admin com JWT (`accessToken` + `refreshToken` revogável em banco via cookie `HttpOnly`).
-- **Infraestrutura e Operação:** AWS (3 instâncias EC2, VPC, Security Groups, ECR), Terraform, GitHub Actions, Infisical, Prometheus e Grafana.
+- **Infraestrutura e Operação:** AWS (3 instâncias EC2, VPC, Security Groups, ECR), Terraform, GitHub Actions e Infisical.
+- **Observabilidade:** Prometheus, Grafana, Loki e Promtail na EC2 do backend, com acesso administrativo por SSM.
 
 ---
 
@@ -43,6 +44,7 @@ cloudops-lab/
 │   │   ├── repositorios/           # Acesso a dados (clientes, admin e refresh tokens)
 │   │   ├── servicos/               # Regras de negócio e validação Zod
 │   │   ├── controladores/          # Handlers HTTP
+│   │   ├── observabilidade/        # Métricas Prometheus e logs JSON
 │   │   └── rotas/                  # Rotas /auth e /clientes
 │   └── tests/                      # Testes unitários e de integração (Vitest + Supertest)
 │
@@ -54,6 +56,8 @@ cloudops-lab/
 │
 ├── database/
 │   └── init.sql                    # Schema inicial (clientes, usuarios_admin, refresh_tokens)
+│
+├── infra/observabilidade/          # Prometheus, Grafana, Loki e Promtail
 │
 └── docs/                           # Documentação técnica, ADRs e guias operacionais
 ```
@@ -85,10 +89,16 @@ Os segredos de desenvolvimento são gerenciados no **Infisical** e injetados em 
    infisical run --env=dev -- npm --prefix frontend run dev
    ```
 
-5. Acesse a aplicação:
+5. Opcional: suba a stack de observabilidade local:
+   ```bash
+   GRAFANA_ADMIN_PASSWORD=admin docker compose -f infra/observabilidade/docker-compose.yml up -d
+   ```
+
+6. Acesse a aplicação:
    - **Frontend (Painel Admin):** `http://localhost:3000`
    - **Backend (Healthcheck):** `http://localhost:3001/health`
-   - **Métricas Prometheus:** `http://localhost:3001/metrics`
+   - **Métricas Prometheus (interna):** `http://localhost:9464/metrics`
+   - **Grafana local (opcional):** `http://localhost:3002`, se a stack de `infra/observabilidade/` estiver ativa; em produção o acesso é por SSM, conforme o [guia de observabilidade](docs/observabilidade/README.md).
 
 ---
 
@@ -99,7 +109,7 @@ Os segredos de desenvolvimento são gerenciados no **Infisical** e injetados em 
 - **CI/CD:** Pipeline automatizado no GitHub Actions cobrindo verificação de código, testes, build de artefatos, deploy e verificação pós-deploy (*smoke test*).
 - **Segurança e Segredos:** Gestão de credenciais com **Infisical** em desenvolvimento/CI e **SSM Parameter Store** em produção (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
 - **Testes e Qualidade:** Testes unitários e de integração integrados ao pipeline de CI.
-- **Observabilidade:** Coleta de métricas (`/metrics`), logs estruturados e dashboards com Prometheus e Grafana.
+- **Observabilidade:** Coleta de métricas na porta interna `9464`, logs JSON no Loki e dashboards no Grafana, com acesso por SSM.
 - **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](docs/README.md).
 
 ---

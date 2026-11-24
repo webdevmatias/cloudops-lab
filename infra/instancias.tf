@@ -27,7 +27,9 @@ resource "aws_eip" "frontend" {
 
 resource "aws_instance" "backend" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.micro"
+  # t3.small para acomodar o backend e a stack de observabilidade
+  # (Prometheus, Grafana, Loki e Promtail) na mesma instancia.
+  instance_type          = "t3.small"
   subnet_id              = aws_subnet.publica.id
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile   = "LabInstanceProfile"

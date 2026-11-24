@@ -26,6 +26,8 @@ services:
     container_name: cloudops-backend
     environment:
       PORT: 3001
+      METRICS_PORT: 9464
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: "postgresql://${POSTGRES_USER:-cloudops_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-loja_roupas}"
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@loja.com}
@@ -34,6 +36,12 @@ services:
       JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET nao definida - use infisical run --env=dev -- docker compose up}"
     ports:
       - "3001:3001"
+      - "9464:9464"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy

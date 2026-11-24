@@ -67,6 +67,8 @@ flowchart TD
 
 - Os segredos de produção ficam no **SSM Parameter Store**, como `SecureString`, e são criados por `infra/deploy/criar-segredos.sh`.
 - As EC2 os leem durante o deploy usando o `LabInstanceProfile`; os valores não passam pelo código, pelo GitHub nem pelos logs.
+- A senha do Grafana fica em `/cloudops-lab/senha-grafana`. O Grafana escuta apenas em `127.0.0.1:3002` na EC2 do backend e é acessado por SSM Port Forwarding; não há porta administrativa aberta na internet.
+- As métricas do backend ficam na porta `9464`, não aberta no Security Group e não exposta pela API pública.
 - Essa escolha é deliberada: o AWS Academy Learner Lab não permite criar roles IAM para OIDC com a AWS, e o SSM já é usado para o acesso administrativo via SSM Session Manager ([ADR 005](../arquitetura/adrs/005-acesso-administrativo-via-ssm.md)).
 - As credenciais temporárias da AWS usadas pelo workflow de CD ficam em GitHub Secrets e são renovadas a cada sessão do Learner Lab.
 
@@ -77,6 +79,7 @@ flowchart TD
 - Arquivos `.env` reais estão explicitamente incluídos no `.gitignore`.
 - O repositório fornece apenas o arquivo de referência `.env.example`, contendo a lista de variáveis necessárias com valores fictícios. **Não crie um `.env` real**: no desenvolvimento use o Infisical; em produção, o SSM Parameter Store.
 - O `docker-compose.yml` falha intencionalmente se `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET` ou `JWT_REFRESH_SECRET` não forem definidos, evitando subir com credenciais padrão. A `DATABASE_URL` do container é montada a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB`.
+- A stack de observabilidade exige `GRAFANA_ADMIN_PASSWORD`; em produção, o valor vem do SSM e não é gravado no repositório. O `promtail` monta o socket do Docker somente para leitura.
 
 ---
 

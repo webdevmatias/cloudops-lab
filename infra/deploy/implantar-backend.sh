@@ -27,7 +27,12 @@ docker pull --quiet "$IMAGEM"
 docker rm -f backend > /dev/null 2>&1 || true
 docker run -d --name backend --restart unless-stopped \
   -p 3001:3001 \
+  -p 9464:9464 \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
   -e PORT=3001 \
+  -e METRICS_PORT=9464 \
+  -e LOG_LEVEL=info \
   -e CORS_ORIGIN="$URL_FRONTEND" \
   -e DATABASE_URL \
   -e JWT_ACCESS_SECRET \
@@ -40,8 +45,14 @@ docker image prune -f > /dev/null
 
 for _ in $(seq 1 30); do
   if curl -fsS http://localhost:3001/health > /dev/null 2>&1; then
-    echo "Backend respondendo em /health"
-    exit 0
+    if curl -fsS http://localhost:9464/metrics > /dev/null 2>&1; then
+      echo "Backend respondendo em /health e /metrics"
+      exit 0
+    fi
+
+    echo "Backend respondeu em /health, mas as metricas nao responderam" >&2
+    docker logs --tail 50 backend >&2
+    exit 1
   fi
   sleep 2
 done

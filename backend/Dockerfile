@@ -23,6 +23,6 @@ COPY --from=builder /app/dist ./dist
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
-EXPOSE 3001
+EXPOSE 3001 9464
 
 CMD ["node", "dist/servidor.js"]

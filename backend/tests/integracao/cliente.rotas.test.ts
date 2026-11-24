@@ -20,10 +20,9 @@ describe('Rotas da API (Integração)', () => {
     expect(resposta.body.banco).toBe('conectado');
   });
 
-  it('GET /metrics deve retornar métricas do Prometheus', async () => {
+  it('GET /metrics nao deve ser exposto na API publica', async () => {
     const resposta = await request(app).get('/metrics');
-    expect(resposta.status).toBe(200);
-    expect(resposta.text).toContain('process_cpu');
+    expect(resposta.status).toBe(404);
   });
 
   it('GET /clientes deve retornar 401 sem token de acesso', async () => {

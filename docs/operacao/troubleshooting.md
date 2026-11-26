@@ -40,3 +40,37 @@ Este documento reúne procedimentos para identificação e resolução de proble
   - Execute `terraform refresh` para sincronizar o arquivo de estado.
   - Verifique o arquivo `terraform.tfstate` e certifique-se de que os nomes de recursos são únicos.
 
+---
+
+## 4. Observabilidade (Prometheus, Grafana, Loki e Promtail)
+
+* **Sintoma:** o alvo `backend` aparece como `DOWN` no Prometheus.
+* **Causas Prováveis:**
+  1. O backend não está rodando ou não publica a porta `9464`.
+  2. As métricas não subiram por falta de `METRICS_PORT` ou erro na inicialização.
+  3. O Prometheus não alcança `host.docker.internal:9464`.
+* **Ações de Diagnóstico:**
+  - Na EC2 do backend: `curl -fsS http://localhost:9464/metrics`.
+  - Confira `docker logs backend` e `docker compose -f /opt/observabilidade/docker-compose.yml logs prometheus`.
+  - Verifique se o backend foi publicado com `-p 9464:9464`.
+
+* **Sintoma:** o Grafana não mostra logs ou o painel fica vazio.
+* **Causas Prováveis:**
+  1. O Promtail não encontrou o contêiner ou o Docker socket não está acessível.
+  2. O log do backend não está em JSON ou o nível não foi extraído.
+  3. O Loki não está saudável.
+* **Ações de Diagnóstico:**
+  - No Grafana, use **Explore → Loki** com `{container=~"backend|cloudops-backend"}`.
+  - Confira `docker compose -f /opt/observabilidade/docker-compose.yml logs promtail loki`.
+  - Valide os logs do backend com `docker logs --tail 20 backend`.
+
+* **Sintoma:** não é possível abrir o Grafana pelo SSM.
+* **Causas Prováveis:**
+  1. A sessão do SSM não está ativa ou o plugin do AWS CLI não está instalado.
+  2. A instância do backend está parada.
+  3. O túnel está apontando para a porta errada.
+* **Ações de Diagnóstico:**
+  - Confirme a instância `running` e o `id_backend`.
+  - Abra o túnel para `3002` e acesse `http://localhost:3002`.
+  - Consulte a senha em `/cloudops-lab/senha-grafana` no Parameter Store.
+

@@ -9,7 +9,7 @@ Este diretório contém todas as especificações técnicas, diagramas de arquit
 ## 📌 Guia de Governança e Regras
 
 Antes de produzir ou alterar qualquer documentação neste projeto, consulte:
-👉 [**Regras e Diretrizes de Documentação**](file:///home/matias/Documentos/cloudops-lab/docs/REGRAS_DOCUMENTACAO.md) — padrões de formatação, regras de segurança de segredos, convenções de código e critérios de aceitação.
+👉 [**Regras e Diretrizes de Documentação**](REGRAS_DOCUMENTACAO.md) — padrões de formatação, regras de segurança de segredos, convenções de código e critérios de aceitação.
 
 ---
 
@@ -40,7 +40,7 @@ docs/
 │   └── README.md                 # Etapas de testes, build, deploy e validação pós-deploy
 │
 ├── seguranca/                    # Gestão de segredos e credenciais
-│   └── README.md                 # Estratégia de segredos (ex: Infisical) e permissões
+│   └── README.md                 # Estratégia híbrida: Infisical em dev/CI e SSM em produção
 │
 ├── observabilidade/              # Monitoramento e telemetria
 │   └── README.md                 # Métricas (Prometheus), logs e dashboards (Grafana)
@@ -58,16 +58,16 @@ docs/
 
 ## 🚀 Navegação Rápida
 
-- [Proposta Inicial do Projeto](file:///home/matias/Documentos/cloudops-lab/docs/proposta-inicial.md)
-- [Organização da Equipe e Divisão de Tarefas](file:///home/matias/Documentos/cloudops-lab/docs/equipe.md)
-- [Arquitetura do Sistema](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/README.md)
-- [Decisões Técnicas Justificadas (ADRs)](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/)
-- [Execução em Ambiente Local](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/README.md)
-- [Padrões de Código e Git (pt-BR, GitFlow & Conventional Commits)](file:///home/matias/Documentos/cloudops-lab/docs/desenvolvimento/padroes-codigo-git.md)
-- [Provisionamento de Infraestrutura (Terraform)](file:///home/matias/Documentos/cloudops-lab/docs/infraestrutura/README.md)
-- [Destruição e Remoção de Recursos (Teardown)](file:///home/matias/Documentos/cloudops-lab/docs/infraestrutura/teardown.md)
-- [Pipeline de CI/CD e Verificação Automatizada](file:///home/matias/Documentos/cloudops-lab/docs/ci-cd/README.md)
-- [Gestão de Segredos e Segurança](file:///home/matias/Documentos/cloudops-lab/docs/seguranca/README.md)
-- [Métricas, Logs e Dashboards](file:///home/matias/Documentos/cloudops-lab/docs/observabilidade/README.md)
-- [Guia de Deploy](file:///home/matias/Documentos/cloudops-lab/docs/operacao/deploy.md)
+- [Proposta Inicial do Projeto](proposta-inicial.md)
+- [Organização da Equipe e Divisão de Tarefas](equipe.md)
+- [Arquitetura do Sistema](arquitetura/README.md)
+- [Decisões Técnicas Justificadas (ADRs)](arquitetura/adrs/)
+- [Execução em Ambiente Local](desenvolvimento/README.md)
+- [Padrões de Código e Git (pt-BR, GitFlow & Conventional Commits)](desenvolvimento/padroes-codigo-git.md)
+- [Provisionamento de Infraestrutura (Terraform)](infraestrutura/README.md)
+- [Destruição e Remoção de Recursos (Teardown)](infraestrutura/teardown.md)
+- [Pipeline de CI/CD e Verificação Automatizada](ci-cd/README.md)
+- [Gestão de Segredos e Segurança](seguranca/README.md)
+- [Métricas, Logs e Dashboards](observabilidade/README.md)
+- [Guia de Deploy](operacao/deploy.md)
 

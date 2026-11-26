@@ -44,8 +44,10 @@ flowchart LR
 - **Registry:** Envio seguro para o **Amazon ECR** (ou registry equivalente configurado).
 
 ### 3.3. Stage 3: Deploy (CD — AWS)
-- Disparo automatizado via **GitHub Actions** para o ambiente **AWS** (ex: atualização de contêineres na EC2/ECS ou execução via Ansible).
+- Disparo automatizado via **GitHub Actions** para o ambiente **AWS** (atualização dos contêineres nas EC2 via SSM Run Command).
 - Aplicação das atualizações de infraestrutura/serviço com zero ou mínimo *downtime*.
+- Após o backend e o frontend, a stack de observabilidade (Prometheus, Grafana, Loki e Promtail) é enviada e iniciada na EC2 do backend.
+- Os segredos da aplicação são lidos do **SSM Parameter Store** dentro das instâncias; o Infisical não participa do runtime de produção nesta fase.
 
 ### 3.4. Stage 4: Verificação Pós-Deploy (Smoke Testing)
 - Execução de requisição automatizada (ex: script curl, teste E2E ou ferramenta de teste de API) contra o endpoint de `/health` ou funcionalidade principal.
@@ -55,6 +57,9 @@ flowchart LR
 
 ## 4. Gerenciamento de Segredos no Pipeline
 
-- Credenciais de nuvem e tokens são injetados exclusivamente via secrets da plataforma de CI/CD (ex: GitHub Secrets) ou integrados com o **Infisical**.
-- Nenhum segredo é exposto nos logs de execução do pipeline.
+A estratégia é híbrida e separada por ambiente, conforme a [ADR 006](../arquitetura/adrs/006-estrategia-hibrida-de-segredos.md):
+
+- **CI:** os segredos do ambiente `dev` são obtidos do **Infisical** pelo `Infisical/secrets-action`, usando **OIDC Auth** com uma Machine Identity. Apenas variáveis não sensíveis (`INFISICAL_IDENTITY_ID` e `INFISICAL_PROJECT_SLUG`) são armazenadas como *Variables* do repositório. O passo roda apenas em `push` para `main`/`develop`; em PRs os testes usam o fallback de ambiente de teste.
+- **CD:** as credenciais temporárias da AWS (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) ficam em GitHub Secrets, exigência do AWS Academy Learner Lab. Os segredos da aplicação em produção ficam no **SSM Parameter Store** e são lidos pelas EC2 durante o deploy (`infra/deploy/criar-segredos.sh` e `implantar-*.sh`). A senha do Grafana também é lida do SSM (`/cloudops-lab/senha-grafana`) por `implantar-monitoramento.sh`.
+- Nenhum segredo da aplicação é exposto nos logs de execução do pipeline; o job de CI valida apenas a presença das variáveis (`test -n`).
 

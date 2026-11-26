@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   backend-testes-e-build:
     name: Backend - Testes e Build
@@ -16,6 +20,19 @@ jobs:
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
+
+      - name: Injetar segredos do Infisical (OIDC)
+        if: github.event_name == 'push'
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: ${{ vars.INFISICAL_IDENTITY_ID }}
+          project-slug: ${{ vars.INFISICAL_PROJECT_SLUG }}
+          env-slug: dev
+
+      - name: Validar segredos injetados
+        if: github.event_name == 'push'
+        run: test -n "$DATABASE_URL" && test -n "$JWT_ACCESS_SECRET" && test -n "$JWT_REFRESH_SECRET"
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4

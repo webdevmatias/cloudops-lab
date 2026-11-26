@@ -37,9 +37,9 @@ Este documento formaliza a proposta inicial do projeto para apresentação e val
 | **IaC** | Terraform | Provisionamento declarativo, reproduzível e versionável no Git. |
 | **CI/CD** | GitHub Actions | Integração nativa com o repositório Git para testes, build e deploy automatizado. |
 | **Contêineres** | Docker + Amazon ECR | Padronização de ambiente entre desenvolvimento local e nuvem. |
-| **Segredos** | Infisical | Centralização e injeção segura de credenciais sem exposição no código ou logs. |
-| **Observabilidade** | Prometheus, Grafana, Telegraf / Loki | Coleta de métricas, agregação de logs e visualização em dashboards. |
+| **Segredos** | Infisical (dev/CI) + SSM Parameter Store (produção) | Injeção segura de credenciais sem exposição no código ou logs, respeitando as restrições de IAM do Learner Lab. |
+| **Observabilidade** | Prometheus, Grafana, Loki e Promtail | Coleta de métricas, agregação de logs e visualização em dashboards. |
 
 > [!NOTE]
-> As justificativas técnicas detalhadas (considerando funcionalidade, segurança, escalabilidade, manutenção e disponibilidade) devem ser registradas em [`docs/arquitetura/adrs/`](file:///home/matias/Documentos/cloudops-lab/docs/arquitetura/adrs/README.md).
+> As justificativas técnicas detalhadas (considerando funcionalidade, segurança, escalabilidade, manutenção e disponibilidade) devem ser registradas em [`docs/arquitetura/adrs/`](arquitetura/adrs/README.md).
 

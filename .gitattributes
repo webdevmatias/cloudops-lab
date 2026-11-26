@@ -1,0 +1,2 @@
+# Scripts executados em Linux (user_data das EC2) precisam de final de linha LF
+*.sh text eol=lf

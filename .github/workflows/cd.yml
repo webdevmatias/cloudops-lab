@@ -1,0 +1,100 @@
+name: CD - Deploy na AWS
+
+on:
+  # Roda depois que a CI terminar com sucesso na main
+  workflow_run:
+    workflows: ["CI - Aplicacao e Imagens Docker"]
+    types: [completed]
+    branches: [main]
+  # Permite rodar manualmente pela aba Actions
+  workflow_dispatch:
+
+# Nunca dois deploys ao mesmo tempo
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  PROJETO: cloudops-lab
+
+jobs:
+  deploy:
+    name: Build, deploy e smoke test
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Definir tag da imagem
+        id: versao
+        run: echo "tag=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Credenciais temporárias do Learner Lab: precisam ser atualizadas a cada sessão
+      - name: Configurar credenciais da AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Descobrir infraestrutura
+        id: infra
+        run: bash infra/deploy/descobrir-infra.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Login no ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build e push da imagem do backend
+        env:
+          REPOSITORIO: ${{ steps.infra.outputs.registro }}/${{ env.PROJETO }}-backend
+          TAG: ${{ steps.versao.outputs.tag }}
+        run: |
+          docker build -t "$REPOSITORIO:$TAG" -t "$REPOSITORIO:latest" ./backend
+          docker push --all-tags "$REPOSITORIO"
+
+      # O endereço da API é gravado no JavaScript durante o build do Next.js
+      - name: Build e push da imagem do frontend
+        env:
+          REPOSITORIO: ${{ steps.infra.outputs.registro }}/${{ env.PROJETO }}-frontend
+          TAG: ${{ steps.versao.outputs.tag }}
+          URL_API: ${{ steps.infra.outputs.url_api }}
+        run: |
+          docker build --build-arg NEXT_PUBLIC_API_URL="$URL_API" \
+            -t "$REPOSITORIO:$TAG" -t "$REPOSITORIO:latest" ./frontend
+          docker push --all-tags "$REPOSITORIO"
+
+      - name: Deploy do banco
+        run: |
+          bash infra/deploy/executar-remoto.sh "${{ steps.infra.outputs.id_banco }}" infra/deploy/implantar-banco.sh \
+            AWS_REGION="$AWS_REGION" PROJETO="$PROJETO" \
+            INIT_SQL_B64="$(base64 -w0 database/init.sql)"
+
+      - name: Deploy do backend
+        run: |
+          bash infra/deploy/executar-remoto.sh "${{ steps.infra.outputs.id_backend }}" infra/deploy/implantar-backend.sh \
+            AWS_REGION="$AWS_REGION" PROJETO="$PROJETO" \
+            IMAGEM="${{ steps.infra.outputs.registro }}/$PROJETO-backend:${{ steps.versao.outputs.tag }}" \
+            IP_BANCO="${{ steps.infra.outputs.ip_banco }}" \
+            URL_FRONTEND="${{ steps.infra.outputs.url_frontend }}"
+
+      - name: Deploy do frontend
+        run: |
+          bash infra/deploy/executar-remoto.sh "${{ steps.infra.outputs.id_frontend }}" infra/deploy/implantar-frontend.sh \
+            AWS_REGION="$AWS_REGION" \
+            IMAGEM="${{ steps.infra.outputs.registro }}/$PROJETO-frontend:${{ steps.versao.outputs.tag }}"
+
+      - name: Deploy da observabilidade
+        run: |
+          tar -czf /tmp/observabilidade.tar.gz -C infra/observabilidade .
+          bash infra/deploy/executar-remoto.sh "${{ steps.infra.outputs.id_backend }}" \
+            infra/deploy/implantar-monitoramento.sh \
+            PROJETO="$PROJETO" \
+            OBS_B64="$(base64 -w0 /tmp/observabilidade.tar.gz)"
+
+      - name: Smoke test
+        run: bash infra/deploy/smoke-test.sh "${{ steps.infra.outputs.url_api }}" "${{ steps.infra.outputs.url_frontend }}"

@@ -5,6 +5,7 @@
 
 # Terraform
 .terraform/
+/infra/tfplan
 *.tfstate
 *.tfstate.*
 crash.log

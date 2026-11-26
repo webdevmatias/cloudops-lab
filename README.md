@@ -15,10 +15,11 @@ Todas as escolhas de arquitetura, serviços de nuvem e ferramentas são justific
 ## Stack e Arquitetura
 
 - **Frontend:** Next.js (App Router + TypeScript + Tailwind CSS) em contêiner Docker (EC2 dedicada).
-- **Backend:** Express + TypeScript (validação Zod, `helmet`, `express-rate-limit`, métricas Prometheus em `/metrics` e `/health`) em contêiner Docker (EC2 dedicada).
+- **Backend:** Express + TypeScript (validação Zod, `helmet`, `express-rate-limit`, logs JSON, métricas Prometheus na porta interna `9464` e `/health`) em contêiner Docker (EC2 dedicada).
 - **Banco de Dados:** PostgreSQL 16 em contêiner Docker com volume persistente (EC2 dedicada).
 - **Autenticação:** Painel Admin com JWT (`accessToken` + `refreshToken` revogável em banco via cookie `HttpOnly`).
-- **Infraestrutura e Operação:** AWS (3 instâncias EC2, VPC, Security Groups, ECR), Terraform, GitHub Actions, Infisical, Prometheus e Grafana.
+- **Infraestrutura e Operação:** AWS (3 instâncias EC2, VPC, Security Groups, ECR), Terraform, GitHub Actions e Infisical.
+- **Observabilidade:** Prometheus, Grafana, Loki e Promtail na EC2 do backend, com acesso administrativo por SSM.
 
 ---
 
@@ -29,6 +30,7 @@ cloudops-lab/
 ├── .env.example                    # Modelo de variáveis de ambiente (sem segredos)
 ├── docker-compose.yml              # Orquestração local (postgres, backend, frontend)
 ├── .github/workflows/ci.yml        # Pipeline de CI (testes, build e imagens Docker)
+├── .github/workflows/cd.yml        # Pipeline de CD (build no ECR e deploy na AWS)
 │
 ├── backend/                        # API REST em Express + TypeScript
 │   ├── Dockerfile                  # Build multi-stage de produção
@@ -42,6 +44,7 @@ cloudops-lab/
 │   │   ├── repositorios/           # Acesso a dados (clientes, admin e refresh tokens)
 │   │   ├── servicos/               # Regras de negócio e validação Zod
 │   │   ├── controladores/          # Handlers HTTP
+│   │   ├── observabilidade/        # Métricas Prometheus e logs JSON
 │   │   └── rotas/                  # Rotas /auth e /clientes
 │   └── tests/                      # Testes unitários e de integração (Vitest + Supertest)
 │
@@ -54,6 +57,8 @@ cloudops-lab/
 ├── database/
 │   └── init.sql                    # Schema inicial (clientes, usuarios_admin, refresh_tokens)
 │
+├── infra/observabilidade/          # Prometheus, Grafana, Loki e Promtail
+│
 └── docs/                           # Documentação técnica, ADRs e guias operacionais
 ```
 
@@ -61,26 +66,39 @@ cloudops-lab/
 
 ## Como Rodar Localmente
 
-1. Copie o arquivo de exemplo de variáveis de ambiente:
+Os segredos de desenvolvimento são gerenciados no **Infisical** e injetados em tempo de execução. O arquivo `.env.example` serve apenas como referência das variáveis esperadas — não crie um `.env` real com credenciais. Em produção AWS, os segredos ficam no **SSM Parameter Store**, conforme o [ADR 006](docs/arquitetura/adrs/006-estrategia-hibrida-de-segredos.md).
+
+1. Instale o **Infisical CLI** (ex: `winget install Infisical.Infisical` no Windows) e autentique-se:
    ```bash
-   cp .env.example .env
+   infisical login
    ```
 
-2. Gere dois segredos JWT e preencha `ADMIN_PASSWORD`, `JWT_ACCESS_SECRET` e `JWT_REFRESH_SECRET` no `.env`:
+2. Vincule o diretório ao projeto do Infisical (gera o `.infisical.json`, que pode ser versionado pois não contém segredos):
    ```bash
-   openssl rand -hex 32
-   openssl rand -hex 32
+   infisical init
    ```
 
-3. Suba todos os serviços com Docker Compose:
+3. Suba todos os serviços injetando os segredos do ambiente `dev`:
    ```bash
-   docker compose up --build
+   infisical run --env=dev -- docker compose up --build
    ```
 
-4. Acesse a aplicação:
+4. Para rodar backend/frontend manualmente em modo dev:
+   ```bash
+   infisical run --env=dev -- npm --prefix backend run dev
+   infisical run --env=dev -- npm --prefix frontend run dev
+   ```
+
+5. Opcional: suba a stack de observabilidade local:
+   ```bash
+   GRAFANA_ADMIN_PASSWORD=admin docker compose -f infra/observabilidade/docker-compose.yml up -d
+   ```
+
+6. Acesse a aplicação:
    - **Frontend (Painel Admin):** `http://localhost:3000`
    - **Backend (Healthcheck):** `http://localhost:3001/health`
-   - **Métricas Prometheus:** `http://localhost:3001/metrics`
+   - **Métricas Prometheus (interna):** `http://localhost:9464/metrics`
+   - **Grafana local (opcional):** `http://localhost:3002`, se a stack de `infra/observabilidade/` estiver ativa; em produção o acesso é por SSM, conforme o [guia de observabilidade](docs/observabilidade/README.md).
 
 ---
 
@@ -89,10 +107,10 @@ cloudops-lab/
 - **Aplicação:** Funcionalidades reais com frontend, backend, persistência em PostgreSQL e execução em nuvem.
 - **Infraestrutura como Código:** Provisionamento automatizado e versionado com Terraform.
 - **CI/CD:** Pipeline automatizado no GitHub Actions cobrindo verificação de código, testes, build de artefatos, deploy e verificação pós-deploy (*smoke test*).
-- **Segurança e Segredos:** Gestão de credenciais via Infisical (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
+- **Segurança e Segredos:** Gestão de credenciais com **Infisical** em desenvolvimento/CI e **SSM Parameter Store** em produção (sem segredos hardcoded no repositório), senhas com hash `bcrypt`, cookies `HttpOnly`, `helmet` e `rate-limit`.
 - **Testes e Qualidade:** Testes unitários e de integração integrados ao pipeline de CI.
-- **Observabilidade:** Coleta de métricas (`/metrics`), logs estruturados e dashboards com Prometheus e Grafana.
-- **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](file:///home/lucasmatias/Documentos/cloudops-lab/docs/README.md).
+- **Observabilidade:** Coleta de métricas na porta interna `9464`, logs JSON no Loki e dashboards no Grafana, com acesso por SSM.
+- **Documentação:** Especificações de arquitetura, ADRs, desenvolvimento, deploy e *teardown* centralizadas em [`docs/`](docs/README.md).
 
 ---
 
@@ -101,24 +119,24 @@ cloudops-lab/
 | Integrante | Papel Principal | Co-responsabilidades |
 | :--- | :--- | :--- |
 | **Lucas Matias** | Aplicação (Frontend, Backend & PostgreSQL) e Testes | Dockerfiles, `docker-compose.yml` e pipeline de CI |
-| **Jeane Vitoria** | Terraform (IaC), Automação e Deploy (CD) | Pipeline de CD, smoke test pós-deploy e guia de *teardown* |
-| **Brenno Araujo** | Serviços AWS (3 EC2, VPC, ECR, EBS), Segurança (Infisical) e Observabilidade | Arquitetura em nuvem, ADRs e governança da documentação |
+| **Jeane Vitoria** | Infraestrutura AWS com Terraform (VPC, subnets, NAT, Security Groups, 3 EC2, EBS, ECR), Automação e Deploy (CD) | Deploy via SSM, segredos da aplicação no SSM Parameter Store, smoke test, guias de infraestrutura, deploy e *teardown*, ADRs 004 e 005 |
+| **Brenno Araujo** | Observabilidade (Prometheus, Grafana, logs) e Segurança | Ambiente AWS oficial, estratégia de segredos (Infisical), HTTPS, ADRs e governança da documentação |
 
-Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](file:///home/lucasmatias/Documentos/cloudops-lab/docs/equipe.md).
+Para detalhes completos da divisão de tarefas, consulte [docs/equipe.md](docs/equipe.md).
 
 ---
 
 ## Documentação
 
-- [Índice da Documentação](file:///home/lucasmatias/Documentos/cloudops-lab/docs/README.md)
-- [Regras e Diretrizes de Documentação](file:///home/lucasmatias/Documentos/cloudops-lab/docs/REGRAS_DOCUMENTACAO.md)
-- [Proposta Inicial do Projeto](file:///home/lucasmatias/Documentos/cloudops-lab/docs/proposta-inicial.md)
-- [Organização da Equipe e Divisão de Tarefas](file:///home/lucasmatias/Documentos/cloudops-lab/docs/equipe.md)
-- [Arquitetura e Decisões Técnicas (ADRs)](file:///home/lucasmatias/Documentos/cloudops-lab/docs/arquitetura/README.md)
-- [Desenvolvimento Local](file:///home/lucasmatias/Documentos/cloudops-lab/docs/desenvolvimento/README.md)
-- [Infraestrutura como Código (Terraform)](file:///home/lucasmatias/Documentos/cloudops-lab/docs/infraestrutura/README.md)
-- [Guia de Destruição / Teardown](file:///home/lucasmatias/Documentos/cloudops-lab/docs/infraestrutura/teardown.md)
-- [Pipelines de CI/CD](file:///home/lucasmatias/Documentos/cloudops-lab/docs/ci-cd/README.md)
-- [Segurança e Segredos](file:///home/lucasmatias/Documentos/cloudops-lab/docs/seguranca/README.md)
-- [Observabilidade](file:///home/lucasmatias/Documentos/cloudops-lab/docs/observabilidade/README.md)
-- [Guia de Deploy em Nuvem](file:///home/lucasmatias/Documentos/cloudops-lab/docs/operacao/deploy.md)
+- [Índice da Documentação](docs/README.md)
+- [Regras e Diretrizes de Documentação](docs/REGRAS_DOCUMENTACAO.md)
+- [Proposta Inicial do Projeto](docs/proposta-inicial.md)
+- [Organização da Equipe e Divisão de Tarefas](docs/equipe.md)
+- [Arquitetura e Decisões Técnicas (ADRs)](docs/arquitetura/README.md)
+- [Desenvolvimento Local](docs/desenvolvimento/README.md)
+- [Infraestrutura como Código (Terraform)](docs/infraestrutura/README.md)
+- [Guia de Destruição / Teardown](docs/infraestrutura/teardown.md)
+- [Pipelines de CI/CD](docs/ci-cd/README.md)
+- [Segurança e Segredos](docs/seguranca/README.md)
+- [Observabilidade](docs/observabilidade/README.md)
+- [Guia de Deploy em Nuvem](docs/operacao/deploy.md)

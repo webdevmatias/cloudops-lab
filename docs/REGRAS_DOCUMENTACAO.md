@@ -129,7 +129,7 @@ As mensagens de commit devem seguir a convenção de **Conventional Commits** co
 Para cumprir o requisito de **justificativa técnica de todas as escolhas**:
 - Toda decisão técnica expressiva (ex: escolha do framework backend/frontend, escolha do banco de dados, provedor cloud, ferramenta de observabilidade e CI/CD) deve gerar um arquivo ADR em `docs/arquitetura/adrs/`.
 - Utilize o padrão numérico incremental: `NNN-titulo-da-decisao.md` (ex: `001-escolha-do-banco-de-dados.md`).
-- Utilize o template oficial em [`docs/templates/adr-template.md`](file:///home/matias/Documentos/cloudops-lab/docs/templates/adr-template.md).
+- Utilize o template oficial em [`docs/templates/adr-template.md`](templates/adr-template.md).
 
 ---
 
